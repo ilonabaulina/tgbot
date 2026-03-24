@@ -1,0 +1,6 @@
+pyTelegramBotAPI
+dateparser
+SpeechRecognition
+pydub
+pytesseract
+Pillow
