@@ -43,3 +43,22 @@ document.getElementById('prevMonth').onclick = () => { currentDate.setMonth(curr
 document.getElementById('nextMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
 
 renderCalendar();
+// Функция переключения между календарем и выбором месяца
+document.getElementById('monthDisplay').onclick = () => {
+    const yearView = document.getElementById('yearView');
+    const daysGrid = document.getElementById('daysGrid');
+    const weekGrid = document.querySelector('.weekdays-grid');
+
+    yearView.classList.toggle('hidden');
+    daysGrid.classList.toggle('hidden');
+    weekGrid.classList.toggle('hidden');
+};
+
+function selectMonth(m) {
+    currentDate.setMonth(m);
+    // Скрываем сетку месяцев и показываем дни
+    document.getElementById('yearView').classList.add('hidden');
+    document.getElementById('daysGrid').classList.remove('hidden');
+    document.querySelector('.weekdays-grid').classList.remove('hidden');
+    renderCalendar();
+}

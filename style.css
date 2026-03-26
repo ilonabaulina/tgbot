@@ -77,3 +77,31 @@ body {
     padding: 5px;
     border-radius: 4px;
 }
+
+.months-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    padding: 20px;
+}
+.months-grid div {
+    background: var(--card-bg);
+    padding: 20px 10px;
+    text-align: center;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+}
+.months-grid div:hover {
+    background: var(--day-hover);
+    color: var(--accent-color);
+}
+#monthDisplay {
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+#monthDisplay:hover {
+    background: var(--day-hover);
+}
