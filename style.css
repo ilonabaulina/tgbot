@@ -1,3 +1,14 @@
+:root {
+    --bg-color: #f4f7f9;
+    --card-bg: #ffffff;
+    --text-color: #1c1c1e;
+    --text-secondary: #8e8e93;
+    --accent-color: #007aff;
+    --border-color: #e5e5ea;
+    --day-hover: #e9e9eb;
+    --font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 body {
     font-family: 'Segoe UI', sans-serif;
     background: #f4f7f9; margin: 0; padding: 10px;
