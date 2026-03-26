@@ -2,38 +2,45 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Flow Calendar</title>
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/sf-pro-display">
     <link rel="stylesheet" href="style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-        <div class="months-grid">
-        <div onclick="selectMonth(0)">Янв</div><div onclick="selectMonth(1)">Фев</div>
-        <div onclick="selectMonth(2)">Мар</div><div onclick="selectMonth(3)">Апр</div>
-        <div onclick="selectMonth(4)">Май</div><div onclick="selectMonth(5)">Июн</div>
-        <div onclick="selectMonth(6)">Июл</div><div onclick="selectMonth(7)">Авг</div>
-        <div onclick="selectMonth(8)">Сен</div><div onclick="selectMonth(9)">Окт</div>
-        <div onclick="selectMonth(10)">Ноя</div><div onclick="selectMonth(11)">Дек</div>
-    </div>
-    <div id="calendar-app">
+    <div id="mainView">
         <div class="header">
-            <button id="prevMonth"><</button>
-            <h2 id="monthDisplay">Март 2026</h2>
-            <button id="nextMonth">></button>
+            <button id="prevMonth" class="nav-btn"><</button>
+            <h2 id="monthDisplay"></h2> <button id="nextMonth" class="nav-btn">></button>
         </div>
 
+        <div id="yearView" class="hidden">
+            <div class="months-grid">
+                <div onclick="selectMonth(0)">Янв</div><div onclick="selectMonth(1)">Фев</div>
+                <div onclick="selectMonth(2)">Мар</div><div onclick="selectMonth(3)">Апр</div>
+                <div onclick="selectMonth(4)">Май</div><div onclick="selectMonth(5)">Июн</div>
+                <div onclick="selectMonth(6)">Июл</div><div onclick="selectMonth(7)">Авг</div>
+                <div onclick="selectMonth(8)">Сен</div><div onclick="selectMonth(9)">Окт</div>
+                <div onclick="selectMonth(10)">Ноя</div><div onclick="selectMonth(11)">Дек</div>
+            </div>
+        </div>
+
+        <div class="weekdays-grid">
+            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+        </div>
+        
         <div id="daysGrid" class="days-grid"></div>
-
-        <div id="dayView" class="hidden">
-            <button onclick="closeDay()">Назад</button>
-            <h3 id="selectedDateText"></h3>
-            <div id="hourlySchedule"></div>
-        </div>
     </div>
-    <div id="yearView" class="hidden">
 
-</div>
+    <div id="dayView" class="hidden">
+        <div class="day-header">
+            <button onclick="closeDayView()" class="back-btn">← Назад</button>
+            <h3 id="selectedDateText"></h3>
+        </div>
+        <div id="hourlySchedule"></div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
