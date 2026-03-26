@@ -8,7 +8,7 @@ from db_functions import (
     get_tasks_to_notify, mark_as_done
 )
 
-bot = telebot.TeleBot('8702280476:AAEjg0bMg3vL2nGCkgk3Ovcy9yzhk6PujZ4')
+bot = telebot.TeleBot('8702280476:AAFUnL-y3aL7Qx3BRMYI1JFxdAZQOQBd4BE')
 user_drafts = {}
 
 # --- БУДИЛЬНИК ---
@@ -118,6 +118,21 @@ def handle_text(message):
                          reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "Я не нашел время в сообщении. Напиши, например: 'в 15:00 купить пиццу'")
+
+        # Настройка постоянной кнопки меню слева от ввода сообщения
+        def set_main_menu(bot):
+            web_info = types.WebAppInfo("https://ilonabaulina.github.io/tgbot/")
+            # Устанавливаем специальную кнопку Mini App в интерфейс бота
+            bot.set_chat_menu_button(
+                menu_button=types.MenuButtonWebApp(
+                    type="web_app",
+                    text="🗓 Календарь",
+                    web_app=web_info
+                )
+            )
+
+        # Вызываем настройку меню
+        set_main_menu(bot)
 # --- ЗАПУСК ---
 if __name__ == '__main__':
     print("--- БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ ---")

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow Calendar</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div id="calendar-app">
+        <div class="header">
+            <button id="prevMonth"><</button>
+            <h2 id="monthDisplay">Март 2026</h2>
+            <button id="nextMonth">></button>
+        </div>
+
+        <div id="daysGrid" class="days-grid"></div>
+
+        <div id="dayView" class="hidden">
+            <button onclick="closeDay()">Назад</button>
+            <h3 id="selectedDateText"></h3>
+            <div id="hourlySchedule"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
