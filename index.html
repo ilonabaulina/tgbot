@@ -2,37 +2,101 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flow Calendar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flow🌊</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body>
-    <div id="calendar-app">
-        <div class="header">
-            <button id="prevMonth"><</button>
-            <h2 id="monthDisplay">Март 2026</h2>
-            <button id="nextMonth">></button>
-        </div>
-
-        <div id="daysGrid" class="days-grid"></div>
-
-        <div id="dayView" class="hidden">
-            <button onclick="closeDay()">Назад</button>
-            <h3 id="selectedDateText"></h3>
-            <div id="hourlySchedule"></div>
+<body class="dark">
+    <div class="app-container">
+        <main id="month-view" class="view">
+<header class="header">
+    <div class="header-left">
+        <button class="icon-btn" onclick="showYearPicker()">
+    <svg viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+    </svg>
+</button>
+        <div class="date-titles">
+            <span id="m-title">Июль</span>
+            <span id="y-title">2026</span>
         </div>
     </div>
-    <div id="yearView" class="hidden">
-    <div class="months-grid">
-        <div onclick="selectMonth(0)">Янв</div><div onclick="selectMonth(1)">Фев</div>
-        <div onclick="selectMonth(2)">Мар</div><div onclick="selectMonth(3)">Апр</div>
-        <div onclick="selectMonth(4)">Май</div><div onclick="selectMonth(5)">Июн</div>
-        <div onclick="selectMonth(6)">Июл</div><div onclick="selectMonth(7)">Авг</div>
-        <div onclick="selectMonth(8)">Сен</div><div onclick="selectMonth(9)">Окт</div>
-        <div onclick="selectMonth(10)">Ноя</div><div onclick="selectMonth(11)">Дек</div>
+    <div class="nav">
+        <button onclick="changeMonth(-1)">&lt;</button>
+        <button onclick="goToday()">Сегодня</button>
+        <button onclick="changeMonth(1)">&gt;</button>
     </div>
-</div>
+</header>
+            <div class="weekdays">
+                <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+            </div>
+            <div id="days-grid" class="days-grid"></div>
+        </main>
+
+        <div id="year-picker" class="view hidden">
+            <header class="header">
+                <span id="picker-year-title">2026</span>
+                <div class="nav">
+                    <button onclick="changeYear(-1)">&lt;</button>
+                    <button onclick="hideYearPicker()">Назад</button>
+                    <button onclick="changeYear(1)">&gt;</button>
+                </div>
+            </header>
+            <div id="months-container" class="months-container"></div>
+        </div>
+
+        <div id="day-detail-view" class="view hidden">
+            <header class="header">
+                <button onclick="closeDayDetail()" class="nav-btn">Назад</button>
+                <span id="detail-date-title">Дата</span>
+                <div style="width: 40px;"></div>
+            </header>
+            <div id="hourly-grid" class="hourly-schedule"></div>
+        </div>
+
+     <aside class="sidebar">
+    <div class="sidebar-content">
+        <div class="sidebar-header">
+            <h2 id="side-date">Задачи</h2>
+            <div class="settings-container">
+                <button class="icon-btn setting-trigger" onclick="toggleSettings()" title="Настройки">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+
+                <div id="settings-menu" class="settings-popup hidden">
+                    <div class="settings-header">Настройки</div>
+                    <div class="setting-item">
+                        <span>Цвет акцента</span>
+                        <input type="color" id="accent-color-picker" onchange="changeAccent(this.value)">
+                    </div>
+                    <div class="setting-item">
+                        <span>Неделя с</span>
+                        <select onchange="updateWeekStart(this.value)">
+                            <option value="1">Пн</option>
+                            <option value="0">Вс</option>
+                        </select>
+                    </div>
+                    <div class="divider"></div>
+                    <button class="danger-btn" onclick="clearAllData()">Сбросить всё</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="add-task-box">
+            <button id="add-task-btn">+</button>
+            <input type="text" id="new-task-input" placeholder="Новое напоминание">
+        </div>
+
+        <div id="task-list" class="task-list"></div>
+    </div>
+</aside>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
