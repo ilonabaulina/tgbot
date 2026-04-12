@@ -1,7 +1,7 @@
 // 1. Глобальные переменные (проверь их наличие в самом начале файла)
 let currentViewDate = new Date(); // Текущий месяц в календаре
 let selectedFullDate = new Date(); // День, выбранный в сайдбаре
-const API_URL = "http://127.0.0.1:5000"; // Твой сервер
+const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev -> http://localhost:5000"; // Твой сервер
 const USER_ID = 12345; // Твой ID (или из Telegram WebApp)
 
 // Массив месяцев для заголовка (если его нет внутри функции)
