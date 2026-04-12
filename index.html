@@ -37,16 +37,18 @@
         </main>
 
         <div id="year-picker" class="view hidden">
-            <header class="header">
-                <span id="picker-year-title">2026</span>
-                <div class="nav">
-                    <button onclick="changeYear(-1)">&lt;</button>
-                    <button onclick="hideYearPicker()">Назад</button>
-                    <button onclick="changeYear(1)">&gt;</button>
-                </div>
-            </header>
-            <div id="months-container" class="months-container"></div>
+    <header class="header">
+        <div class="nav">
+            <button onclick="changeYear(-1)">&lt;</button>
         </div>
+        <span id="picker-year-title">2026</span>
+        <div class="nav">
+            <button onclick="changeYear(1)">&gt;</button>
+            <button onclick="hideYearPicker()">Назад</button>
+        </div>
+    </header>
+    <div id="months-container" class="months-container"></div>
+</div>
 
         <div id="day-detail-view" class="view hidden">
             <header class="header">
@@ -57,7 +59,7 @@
             <div id="hourly-grid" class="hourly-schedule"></div>
         </div>
 
-     <aside class="sidebar">
+<aside class="sidebar">
     <div class="sidebar-content">
         <div class="sidebar-header">
             <h2 id="side-date">Задачи</h2>
@@ -88,12 +90,29 @@
             </div>
         </div>
 
-        <div class="add-task-box">
-            <button id="add-task-btn">+</button>
-            <input type="text" id="new-task-input" placeholder="Новое напоминание">
+        <div class="add-task-container">
+            <div class="date-selector-row">
+                <button class="nav-arrow" onclick="changeSelectedDay(-1)">&lt;</button>
+                <div class="current-date-display" onclick="openMiniCalendar()">
+                    <span id="selected-date-text">12 апреля 2026</span>
+                    <input type="date" id="hidden-date-picker" style="display:none" onchange="handleMiniCalChange(this.value)">
+                </div>
+                <button class="nav-arrow" onclick="changeSelectedDay(1)">&gt;</button>
+            </div>
+
+            <div class="add-task-box">
+                <input type="text" id="new-task-input" placeholder="Название или 'Шашлыки 15'">
+                <button id="add-task-btn">+</button>
+            </div>
+
+            <div class="time-picker-row">
+                <input type="time" id="task-time-picker" value="09:00">
+                <span class="hint">Или просто напиши время в строке</span>
+            </div>
         </div>
 
-        <div id="task-list" class="task-list"></div>
+        <div id="task-list" class="task-list">
+            </div>
     </div>
 </aside>
     </div>

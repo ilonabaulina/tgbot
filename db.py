@@ -43,6 +43,24 @@ CREATE TABLE IF NOT EXISTS diary (
     FOREIGN KEY (user_id) REFERENCES users (user_id)
 );
 ''')
+# 1. Добавляем колонки в таблицу пользователей
+try:
+    cursor.execute("ALTER TABLE users ADD COLUMN group_number TEXT")
+    cursor.execute("ALTER TABLE users ADD COLUMN subgroup INTEGER DEFAULT 0")
+    cursor.execute("ALTER TABLE users ADD COLUMN user_status TEXT DEFAULT 'active'")
+    cursor.execute("ALTER TABLE users ADD COLUMN status_until DATETIME")
+    print("Таблица users обновлена")
+except sqlite3.OperationalError:
+    print("Колонки в users уже существуют")
 
+# 2. Добавляем колонки в таблицу расписания
+try:
+    cursor.execute("ALTER TABLE schedule ADD COLUMN end_time TEXT")
+    cursor.execute("ALTER TABLE schedule ADD COLUMN lesson_type TEXT")
+    cursor.execute("ALTER TABLE schedule ADD COLUMN week_numbers TEXT")
+    cursor.execute("ALTER TABLE schedule ADD COLUMN is_custom INTEGER DEFAULT 0")
+    print("Таблица schedule обновлена")
+except sqlite3.OperationalError:
+    print("Колонки в schedule уже существуют")
 conn.commit()
 conn.close()

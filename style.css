@@ -7,6 +7,11 @@
     --border: rgba(255, 255, 255, 0.1);
 }
 
+* {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: var(--bg); color: var(--text); font-family: -apple-system, system-ui, sans-serif; height: 100vh; overflow: hidden;
  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -217,5 +222,131 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, sy
 .add-task-box { display: flex; gap: 10px; background: var(--card); padding: 8px; border-radius: 8px; margin: 15px 0; }
 #new-task-input { background: transparent; border: none; color: white; flex: 1; }
 .task-item { display: flex; gap: 10px; padding: 8px; border-bottom: 1px solid var(--border); }
+
+/* Подсветка ввода цветом пользователя */
+#new-task-input:focus {
+    outline: none;
+    border: 2px solid var(--accent) !important;
+    box-shadow: none;
+    transition: 0.3s;
+}
+/* Контейнер со стрелочками даты */
+.day-switcher {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Убираем страшный шрифт у заголовка */
+h2#side-date {
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+
+/* Стиль тумблера (iOS style или просто аккуратный) */
+#task-time-picker {
+border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: #1a1a1a;
+    color: white;
+    padding: 4px 8px;
+    font-family: inherit;
+}
+
+#task-time-picker:focus {
+    border-color: var(--accent);
+}
+
+.time-picker-row {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hint { font-size: 10px; color: #777; }
+/* Плашка задачи в клетке календаря */
+.day { position: relative; }
+
+.task-badge {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 3px;
+    background-color: var(--accent);
+    border-radius: 2px;
+}
+
+/* Мини-сетка для выбора года */
+.mini-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    font-size: 8px;
+}
+.mini-day { padding: 1px; text-align: center; }
+
+.date-selector-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.current-date-display {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    border: 1px solid transparent;
+    transition: 0.2s;
+}
+
+.current-date-display:hover {
+    border-color: var(--accent);
+}
+
+.nav-arrow {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+/* Стили для галочки */
+.task-check {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    margin-right: 10px;
+    cursor: pointer;
+    position: relative;
+}
+
+.task-check:checked {
+    background: var(--accent);
+}
+
+.task-check:checked::after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 12px;
+    left: 3px;
+    top: -1px;
+}
+
 
 @media (max-width: 768px) { .app-container { flex-direction: column; } .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); } }
