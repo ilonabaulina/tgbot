@@ -1,7 +1,7 @@
 // 1. Глобальные переменные (проверь их наличие в самом начале файла)
 let currentViewDate = new Date(); // Текущий месяц в календаре
 let selectedFullDate = new Date(); // День, выбранный в сайдбаре
-const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev -> http://localhost:5000"; // Твой сервер
+const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev"; // Твой сервер
 const USER_ID = 12345; // Твой ID (или из Telegram WebApp)
 
 // Массив месяцев для заголовка (если его нет внутри функции)
@@ -283,11 +283,6 @@ function updateDateDisplay() {
     highlightDayInGrid(selectedFullDate.getDate());
 }
 
-function changeSelectedDay(offset) {
-    selectedFullDate.setDate(selectedFullDate.getDate() + offset);
-    updateDateDisplay();
-}
-
 function highlightDayInGrid(dayNumber) {
     document.querySelectorAll('.day').forEach(el => {
         el.classList.remove('selected');
@@ -337,7 +332,7 @@ function handleMiniCalChange(dateString) {
     // Обновляем текст в сайдбаре и выделение в большой сетке
     updateDateDisplay();
     // Если у тебя есть функция отрисовки задач на день — вызываем её
-    loadTasksForDay(selectedFullDate);
+   // loadTasksForDay(selectedFullDate);
 }
 
 function createTaskElement(task) {
