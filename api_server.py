@@ -5,7 +5,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 # CORS важен, чтобы Telegram разрешил приложению стучаться к твоему серверу
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 DB_PATH = 'bot_database.db'
 
@@ -59,12 +59,14 @@ def get_tasks():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT task_text as text, notify_at as date FROM tasks WHERE user_id = ?", (user_id,))
+        # Мы используем DATE(), чтобы отсечь время и оставить только ГГГГ-ММ-ДД
+        cursor.execute("SELECT task_text as text, DATE(notify_at) as date FROM tasks WHERE user_id = ?", (user_id,))
         rows = cursor.fetchall()
         conn.close()
         return jsonify([dict(row) for row in rows])
     except Exception as e:
-        return jsonify([]) # Возвращаем пустой список, если что-то не так
+        print(f"Ошибка БД: {e}")
+        return jsonify([])# Возвращаем пустой список, если что-то не так
 
 if __name__ == '__main__':
     # Запускаем на порту 5000.

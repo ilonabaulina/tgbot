@@ -18,10 +18,15 @@ async function init() {
 // --- 1. ЗАГРУЗКА И ОТРИСОВКА КАЛЕНДАРЯ ---
 async function fetchTasks() {
     try {
-        const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`);
+        const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
+            headers: {
+                "ngrok-skip-browser-warning": "69420" // ОБЯЗАТЕЛЬНО для ngrok
+            }
+        });
         return await res.json();
     } catch (e) {
-        return []; // Если сервер спит, возвращаем пустой список
+        console.error("Сервер недоступен:", e);
+        return [];
     }
 }
 
@@ -117,65 +122,57 @@ async function renderMonth() {
 }
 // --- 2. УМНЫЙ ВВОД (ШАШЛЫКИ 15) ---
 
+// --- 2. УМНЫЙ ВВОД ---
 function setupTasks() {
     const input = document.getElementById('new-task-input');
-    const timePicker = document.getElementById('task-time-picker');
     const addBtn = document.getElementById('add-task-btn');
+    if (!input || !addBtn) return;
 
     const submitTask = async () => {
         let rawText = input.value.trim();
         if (!rawText) return;
 
-        // Приоритет 1: Время из текста (Шашлыки 15)
+        const dateStr = selectedFullDate.toISOString().split('T')[0];
+
         let hour = "09", minute = "00";
         const timeMatch = rawText.match(/(\d{1,2})[:.](\d{2})/) || rawText.match(/(?<!\d)(\d{1,2})(?!\d)$/);
 
         if (timeMatch) {
-            if (timeMatch[2]) {
-                hour = timeMatch[1].padStart(2, '0');
-                minute = timeMatch[2];
-            } else {
-                hour = timeMatch[1].padStart(2, '0');
-                minute = "00";
-            }
+            hour = timeMatch[1].padStart(2, '0');
+            minute = timeMatch[2] || "00";
             rawText = rawText.replace(timeMatch[0], "").trim();
-        } else {
-            // Приоритет 2: Время из тумблера (input type="time")
-            [hour, minute] = timePicker.value.split(':');
         }
 
-        const finalTime = `${hour}:${minute}`;
-        const selectedDay = document.querySelector('.day.selected')?.innerText || new Date().getDate();
-        const dateStr = `${currentViewDate.getFullYear()}-${String(currentViewDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
-
         try {
-            const response = await fetch(`${API_URL}/add_task`, {
+const response = await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': '69420'
+                },
                 body: JSON.stringify({
                     user_id: USER_ID,
                     text: rawText || "Напоминание",
                     date: dateStr,
-                    time: finalTime
+                    time: `${hour}:${minute}`
                 })
             });
 
             if (response.ok) {
-                renderMonth(); // Обновит плашки в календаре
                 input.value = '';
-                // Добавляем плашку визуально в сайдбар
+                renderMonth();
+                const taskList = document.getElementById('task-list');
                 const div = document.createElement('div');
                 div.className = 'task-item';
-                div.style.borderLeft = `3px solid var(--accent)`;
-                div.innerHTML = `<span>${rawText}</span> <b style="color:var(--accent)">${finalTime}</b>`;
-                document.getElementById('task-list').prepend(div);
+                div.innerHTML = `<input type="checkbox" class="task-check"><span class="task-text">${rawText}</span>`;
+                taskList.prepend(div);
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { console.error("Ошибка отправки:", err); }
     };
 
     input.onkeypress = (e) => { if (e.key === 'Enter') submitTask(); };
     addBtn.onclick = submitTask;
-}
+} // <--- ВОТ ЭТА СКОБКА БЫЛА ПРОПУЩЕНА!
 
 // --- 3. НАВИГАЦИЯ (ГОД, НАСТРОЙКИ, ДЕТАЛИ) ---
 function showYearPicker() {
