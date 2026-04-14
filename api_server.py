@@ -8,8 +8,11 @@ app = Flask(__name__)
 DB_PATH = 'bot_database.db'
 
 # 1. Настройка CORS
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type", "ngrok-skip-browser-warning"]
+}})
 
 @app.after_request
 def add_cors_headers(response):

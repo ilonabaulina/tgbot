@@ -5,6 +5,11 @@ let selectedFullDate = new Date(); // День, выбранный в сайдб
 const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev"; // Твой сервер
 const USER_ID = 12345; // Твой ID (или из Telegram WebApp)
 
+const COMMON_HEADERS = {
+    'ngrok-skip-browser-warning': '69420',
+    'Content-Type': 'application/json'
+};
+
 // Массив месяцев для заголовка (если его нет внутри функции)
 const months = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -23,10 +28,7 @@ async function fetchTasks() {
     try {
         const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
             method: 'GET',
-            headers: {
-                'ngrok-skip-browser-warning': '69420',
-                'Accept': 'application/json'
-            }
+            headers: COMMON_HEADERS // <--- Здесь теперь порядок
         });
         if (!res.ok) throw new Error('Ошибка сети');
         return await res.json();
@@ -384,20 +386,17 @@ function createTaskElement(task) {
     return div;
 }
 
-
 async function toggleTaskStatus(taskId, isCompleted) {
     try {
-        await fetch(`${API_URL}/update_task_status`, {
+        const response = await fetch(`${API_URL}/update_task_status`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // ВОТ ЭТОТ ЗАГОЛОВОК НУЖЕН ВЕЗДЕ
-                'ngrok-skip-browser-warning': '69420'
-            },
+            headers: COMMON_HEADERS,
             body: JSON.stringify({ id: taskId, completed: isCompleted })
         });
+        return response.ok;
     } catch (e) {
         console.error("Ошибка обновления статуса:", e);
+        return false;
     }
 }
 
