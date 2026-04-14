@@ -1,3 +1,4 @@
+
 // 1. Глобальные переменные (проверь их наличие в самом начале файла)
 let currentViewDate = new Date(); // Текущий месяц в календаре
 let selectedFullDate = new Date(); // День, выбранный в сайдбаре
@@ -11,18 +12,23 @@ const months = [
 ];
 async function init() {
     await renderMonth();
-    setupTasks();
+    setupTasks(); // <--- Она должна быть тут
     applySavedAccent();
+    updateDateDisplay();
+    await refreshTasks(); // <--- И это тоже
 }
 
 // --- 1. ЗАГРУЗКА И ОТРИСОВКА КАЛЕНДАРЯ ---
 async function fetchTasks() {
     try {
         const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
+            method: 'GET',
             headers: {
-                "ngrok-skip-browser-warning": "69420" // ОБЯЗАТЕЛЬНО для ngrok
+                'ngrok-skip-browser-warning': '69420',
+                'Accept': 'application/json'
             }
         });
+        if (!res.ok) throw new Error('Ошибка сети');
         return await res.json();
     } catch (e) {
         console.error("Сервер недоступен:", e);
@@ -33,60 +39,44 @@ async function fetchTasks() {
 async function renderMonth() {
     const grid = document.getElementById('days-grid');
     if (!grid) return;
-    grid.innerHTML = '';
 
-    // Берем текущие значения из глобальной переменной даты
+    grid.innerHTML = '';
     const y = currentViewDate.getFullYear();
     const m = currentViewDate.getMonth();
 
-    // Месяцы для заголовка
-    const monthNames = [
-        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-    ];
-
-    // Обновляем заголовки в календаре
-    if (document.getElementById('m-title')) document.getElementById('m-title').innerText = monthNames[m];
+    if (document.getElementById('m-title')) document.getElementById('m-title').innerText = months[m];
     if (document.getElementById('y-title')) document.getElementById('y-title').innerText = y;
 
-    // Расчет пустых ячеек (чтобы месяц начинался с правильного дня недели)
+    // Расчет пустых ячеек (Пн-Вс)
     let firstDay = new Date(y, m, 1).getDay();
-    let shift = (firstDay === 0) ? 6 : firstDay - 1; // Пн - 0, Вс - 6
+    let shift = (firstDay === 0) ? 6 : firstDay - 1;
     let daysInMonth = new Date(y, m + 1, 0).getDate();
 
-    // Получаем задачи из БД
-    let tasks = [];
-    try {
-        tasks = await fetchTasks();
-    } catch (e) {
-        console.error("Ошибка при получении задач:", e);
-    }
+    const tasks = await fetchTasks();
 
-    // 1. Отрисовка пустых ячеек
+    // 2. Рисуем пустые ячейки до начала месяца
     for (let i = 0; i < shift; i++) {
         const div = document.createElement('div');
         div.className = 'day empty';
         grid.appendChild(div);
     }
 
-    // 2. Отрисовка самих дней месяца
+    // 3. Рисуем дни месяца
     for (let d = 1; d <= daysInMonth; d++) {
-        // Проверка: сегодня ли этот день
         const now = new Date();
         const isToday = (d === now.getDate() && m === now.getMonth() && y === now.getFullYear());
 
-        // Формируем строку даты текущего дня (ГГГГ-ММ-ДД) для сравнения с БД
-        const currentDayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-        // Ищем, есть ли хоть одна задача на эту конкретную дату
-        const hasTask = tasks.some(t => t.date === currentDayStr);
+        // Форматируем дату текущего дня для сравнения с БД (ГГГГ-ММ-ДД)
+        const currentDayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;       // Проверяем наличие ТОЛЬКО НЕВЫПОЛНЕННЫХ задач на этот день
+// ЛОГИКА: Плашка (badge) рисуется только если есть НЕВЫПОЛНЕННЫЕ задачи
+        const hasActiveTasks = tasks.some(t =>
+            t.date && t.date.startsWith(currentDayStr) && t.completed == 0
+        );
 
         const dayNode = document.createElement('div');
         dayNode.className = `day ${isToday ? 'today' : ''}`;
 
-        // Если выбран этот день в сайдбаре — подсвечиваем (selectedFullDate должен быть объявлен глобально)
-        if (typeof selectedFullDate !== 'undefined' &&
-            d === selectedFullDate.getDate() &&
+        if (d === selectedFullDate.getDate() &&
             m === selectedFullDate.getMonth() &&
             y === selectedFullDate.getFullYear()) {
             dayNode.classList.add('selected');
@@ -94,57 +84,59 @@ async function renderMonth() {
 
         dayNode.innerText = d;
 
-        // Рисуем плашку (бадж), если есть задачи
-        if (hasTask) {
+        if (hasActiveTasks) {
             dayNode.classList.add('has-tasks');
             const badge = document.createElement('div');
             badge.className = 'task-badge';
             dayNode.appendChild(badge);
         }
 
-        // Клик по дню
-        dayNode.onclick = () => {
-            // Снимаем выделение со всех
-            document.querySelectorAll('.day').forEach(el => el.classList.remove('selected'));
-            // Выделяем текущий
-            dayNode.classList.add('selected');
-
-            // Обновляем глобальную дату
+        dayNode.onclick = async () => {
             selectedFullDate = new Date(y, m, d);
-
-            // Если есть функции обновления интерфейса — вызываем
-            if (typeof updateDateDisplay === 'function') updateDateDisplay();
-            if (typeof openDayDetail === 'function') openDayDetail(d);
+            updateDateDisplay();
+            await renderMonth();
+            openDayDetail(d);
+            await refreshTasks();
         };
 
         grid.appendChild(dayNode);
     }
 }
-// --- 2. УМНЫЙ ВВОД (ШАШЛЫКИ 15) ---
-
 // --- 2. УМНЫЙ ВВОД ---
 function setupTasks() {
-    const input = document.getElementById('new-task-input');
+    const taskInput = document.getElementById('new-task-input');
     const addBtn = document.getElementById('add-task-btn');
-    if (!input || !addBtn) return;
 
-    const submitTask = async () => {
-        let rawText = input.value.trim();
+    if (!taskInput || !addBtn) {
+        console.error("Критическая ошибка: элементы ввода не найдены!");
+        return;
+    }
+
+    const performSubmit = async (e) => {
+        // Останавливаем любое стандартное поведение браузера
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        let rawText = taskInput.value.trim();
+        console.log("Попытка отправить задачу:", rawText); // Проверка в консоли
+
         if (!rawText) return;
 
-        const dateStr = selectedFullDate.toISOString().split('T')[0];
+        const dateStr = `${selectedFullDate.getFullYear()}-${String(selectedFullDate.getMonth() + 1).padStart(2, '0')}-${String(selectedFullDate.getDate()).padStart(2, '0')}`;
 
         let hour = "09", minute = "00";
         const timeMatch = rawText.match(/(\d{1,2})[:.](\d{2})/) || rawText.match(/(?<!\d)(\d{1,2})(?!\d)$/);
 
         if (timeMatch) {
             hour = timeMatch[1].padStart(2, '0');
-            minute = timeMatch[2] || "00";
+            minute = (timeMatch[2] || "00").padStart(2, '0');
             rawText = rawText.replace(timeMatch[0], "").trim();
         }
 
         try {
-const response = await fetch(`${API_URL}/add_task`, {
+            const response = await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -159,21 +151,28 @@ const response = await fetch(`${API_URL}/add_task`, {
             });
 
             if (response.ok) {
-                input.value = '';
-                renderMonth();
-                const taskList = document.getElementById('task-list');
-                const div = document.createElement('div');
-                div.className = 'task-item';
-                div.innerHTML = `<input type="checkbox" class="task-check"><span class="task-text">${rawText}</span>`;
-                taskList.prepend(div);
+                console.log("Задача успешно добавлена!");
+                taskInput.value = '';
+                await renderMonth();
+                if (typeof refreshTasks === 'function') await refreshTasks();
+            } else {
+                console.error("Ошибка сервера:", response.status);
             }
-        } catch (err) { console.error("Ошибка отправки:", err); }
+        } catch (err) {
+            console.error("Ошибка сети:", err);
+        }
     };
 
-    input.onkeypress = (e) => { if (e.key === 'Enter') submitTask(); };
-    addBtn.onclick = submitTask;
-} // <--- ВОТ ЭТА СКОБКА БЫЛА ПРОПУЩЕНА!
+    // Вешаем событие на кнопку ПРЯМЫМ способом
+    addBtn.onclick = performSubmit;
 
+    // Вешаем событие на Enter
+    taskInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            performSubmit(e);
+            }
+        };
+}
 // --- 3. НАВИГАЦИЯ (ГОД, НАСТРОЙКИ, ДЕТАЛИ) ---
 function showYearPicker() {
     const container = document.getElementById('months-container');
@@ -217,16 +216,52 @@ function toggleSettings() {
     document.getElementById('settings-menu').classList.toggle('hidden');
 }
 
-function openDayDetail(day) {
+async function openDayDetail(day) {
     document.getElementById('detail-date-title').innerText = `${day} ${months[currentViewDate.getMonth()]}`;
     const hGrid = document.getElementById('hourly-grid');
     hGrid.innerHTML = '';
+
+    const y = currentViewDate.getFullYear();
+    const m = String(currentViewDate.getMonth() + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    const fullDateStr = `${y}-${m}-${d}`;
+
+    const tasks = await fetchTasks();
+
     for (let h = 0; h < 24; h++) {
-        hGrid.innerHTML += `<div class="hour-row">
-            <div class="time-label">${h}:00</div>
-            <div class="hour-content" contenteditable="true"></div>
-        </div>`;
+        const hourStr = String(h).padStart(2, '0');
+        const tasksInThisHour = tasks.filter(t => {
+            const taskDate = t.date ? t.date.split(' ')[0] : "";
+            const taskHour = t.time ? t.time.split(':')[0] : "";
+            return taskDate === fullDateStr && taskHour === hourStr;
+        });
+
+        // Формируем HTML для каждой задачи в этом часе с чекбоксом
+const taskHtml = tasksInThisHour.map(t => `
+    <div class="task-item-mini ${t.completed ? 'completed' : ''}"
+         style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <input type="checkbox" class="task-check"
+               ${t.completed ? 'checked' : ''}
+               onchange="updateTaskUI('${t.id}', this)">
+        <span class="task-text" style="${t.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
+            ${t.text}
+        </span>
+    </div>
+`).join('');
+
+        hGrid.innerHTML += `
+            <div class="hour-row" style="min-height: 45px; border-bottom: 1px solid var(--border); display: flex;">
+                <div class="time-label" style="width: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border);">
+                    ${h}:00
+                </div>
+                <div class="hour-content ${tasksInThisHour.length > 0 ? 'has-data' : ''}"
+                     data-hour="${h}"
+                     style="flex: 1; padding: 5px 10px; display: flex; flex-direction: column; justify-content: center;">
+                    ${taskHtml || '<span style="opacity: 0.2; font-size: 0.7rem;">Свободно</span>'}
+                </div>
+            </div>`;
     }
+
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
 }
@@ -274,10 +309,11 @@ function changeSelectedDay(offset) {
 
 function updateDateDisplay() {
     const options = { day: 'numeric', month: 'long', year: 'numeric' };
-    document.getElementById('selected-date-text').innerText = selectedFullDate.toLocaleDateString('ru-RU', options);
+    const display = document.getElementById('selected-date-text');
 
-    // Подсвечиваем этот день в основной сетке календаря
-    highlightDayInGrid(selectedFullDate.getDate());
+    if (display) {
+        display.innerText = selectedFullDate.toLocaleDateString('ru-RU', options);
+    }
 }
 
 function highlightDayInGrid(dayNumber) {
@@ -348,6 +384,69 @@ function createTaskElement(task) {
     return div;
 }
 
+
+async function toggleTaskStatus(taskId, isCompleted) {
+    try {
+        await fetch(`${API_URL}/update_task_status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // ВОТ ЭТОТ ЗАГОЛОВОК НУЖЕН ВЕЗДЕ
+                'ngrok-skip-browser-warning': '69420'
+            },
+            body: JSON.stringify({ id: taskId, completed: isCompleted })
+        });
+    } catch (e) {
+        console.error("Ошибка обновления статуса:", e);
+    }
+}
+
+// Сохранение отредактированного текста
+async function saveTaskEdit(taskId, element) {
+    const newText = element.innerText.trim();
+    try {
+        await fetch(`${API_URL}/update_task_text`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({ id: taskId, text: newText })
+        });
+        console.log("Сохранено:", newText);
+    } catch (e) {
+        console.error("Ошибка сохранения текста:", e);
+    }
+}
+
+// Логика перетаскивания задач в списке
+function initDragAndDrop() {
+    const container = document.getElementById('task-list');
+    container.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(container, e.clientY);
+        const dragging = document.querySelector('.dragging');
+        if (afterElement == null) {
+            container.appendChild(dragging);
+        } else {
+            container.insertBefore(dragging, afterElement);
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')];
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+//init();
 // Функция для отправки статуса на сервер
 async function toggleTaskStatus(taskId, isCompleted) {
     try {
@@ -358,4 +457,118 @@ async function toggleTaskStatus(taskId, isCompleted) {
         });
     } catch (e) { console.error("Ошибка обновления статуса:", e); }
 }
+document.addEventListener('DOMContentLoaded', () => {
+    setupTasks(); // Еще раз принудительно привязываем кнопку после загрузки страницы
+});
+
+async function refreshTasks() {
+    const taskList = document.getElementById('task-list');
+    if (!taskList) return;
+
+    const tasks = await fetchTasks();
+    taskList.innerHTML = '';
+
+    // 1. Оставляем только активные задачи
+    const activeTasks = tasks.filter(t => !t.completed || t.completed === 0);
+
+    if (activeTasks.length === 0) {
+        taskList.innerHTML = '<div class="hint">Активных задач нет</div>';
+        return;
+    }
+
+    // 2. Сортируем
+    activeTasks.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+
+    activeTasks.forEach(task => {
+        const div = document.createElement('div');
+        div.className = 'task-item';
+
+        // 3. Убираем секунды (из "09:00:00" делаем "09:00")
+        const shortTime = task.time ? task.time.substring(0, 5) : "00:00";
+
+        // 4. Красиво форматируем дату (из "2026-04-14" в "14.04")
+        let formattedDate = "";
+        if (task.date) {
+            const dateParts = task.date.split('-');
+            if (dateParts.length === 3) {
+                formattedDate = `${dateParts[2]}.${dateParts[1]}`;
+            }
+        }
+
+        // 5. Новая верстка: текст сверху, время и дата снизу
+        div.innerHTML = `
+            <input type="checkbox" class="task-check" onchange="updateTaskUI('${task.id}', this)">
+            <div class="task-info">
+                <div class="task-text">${task.text}</div>
+                <div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); margin-top: 4px;">
+                    ${shortTime} | ${formattedDate}
+                </div>
+            </div>
+        `;
+        taskList.appendChild(div);
+    });
+}
 init();
+// --- ТВОЙ НОВЫЙ ВТОРОЙ ПУНКТ (ГЛАВНЫЙ ДИСПЕТЧЕР ГАЛОЧЕК) ---
+window.updateTaskUI = async (taskId, checkbox) => {
+    const isDone = checkbox.checked;
+    // Находим родительский контейнер задачи (хоть в списке, хоть в сетке)
+    const taskItem = checkbox.closest('.task-item') || checkbox.closest('.task-item-mini');
+
+    if (isDone) {
+        // 1. Сразу зачеркиваем визуально для скорости
+        if (taskItem) taskItem.classList.add('completed');
+
+        // 2. Отправляем запрос на сервер
+        const success = await toggleTaskStatus(taskId, true);
+
+        if (success) {
+            // 3. Если всё ок, обновляем боковой список (задача исчезнет из-за фильтра)
+            await refreshTasks();
+
+            // 4. Обновляем точки на календаре, но только если окно деталей закрыто
+            const detailView = document.getElementById('day-detail-view');
+            if (detailView && detailView.classList.contains('hidden')) {
+                await renderMonth();
+            }
+        } else {
+            // Если сервер выдал ошибку (как на твоем скрине) — возвращаем галочку назад
+            checkbox.checked = false;
+            if (taskItem) taskItem.classList.remove('completed');
+        }
+    }
+};
+
+// Слушатель для автосохранения при выходе из ячейки часа
+document.addEventListener('blur', async (e) => {
+    if (e.target.classList.contains('hour-content')) {
+        const newText = e.target.innerText.trim();
+        const hour = e.target.getAttribute('data-hour');
+
+        if (!newText || !hour) return;
+
+        const y = currentViewDate.getFullYear();
+        const m = String(currentViewDate.getMonth() + 1).padStart(2, '0');
+        const d = String(selectedFullDate.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+
+        try {
+            const response = await fetch(`${API_URL}/add_task`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: USER_ID,
+                    text: newText,
+                    date: dateStr,
+                    time: `${hour.padStart(2, '0')}:00`
+                })
+            });
+            if (response.ok) {
+                await renderMonth(); // чтобы появилась точка на календаре
+                await refreshTasks(); // чтобы обновился список сбоку
+            }
+        } catch (err) {
+            console.error("Ошибка сохранения из сетки:", err);
+        }
+    }
+}, true);

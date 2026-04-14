@@ -347,6 +347,112 @@ border: 1px solid rgba(255, 255, 255, 0.2);
     left: 3px;
     top: -1px;
 }
+/* Контейнер задачи */
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--card); /* Каждая задача в своей карточке */
+    border-radius: 12px;
+    margin-bottom: 8px;
+    border: 1px solid transparent;
+    transition: transform 0.2s, background 0.2s;
+    cursor: grab; /* Курсор "рука", чтобы было понятно, что можно двигать */
+}
+.task-item:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+}
 
+/* Эффект при перетаскивании (если добавишь JS Drag&Drop) */
+.task-item.dragging {
+    opacity: 0.5;
+    background: var(--border);
+}
 
-@media (max-width: 768px) { .app-container { flex-direction: column; } .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); } }
+/* Состояние "Готово" */
+.task-item.completed {
+    opacity: 0.4;
+}
+
+.task-item.completed .task-text {
+    text-decoration: line-through;
+}
+
+/* Текст задачи (верхняя строка) */
+.task-text {
+    display: block;
+    font-size: 1rem;
+    color: #fff;
+}
+
+//* Сделаем текст задачи редактируемым */
+.task-text {
+    flex: 1;
+    outline: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.task-text:focus {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Сетка часов (0-24) */
+.hour-content {
+    outline: none;
+    min-height: 24px;
+    cursor: text;
+    padding-left: 8px;
+}
+
+.hour-content.has-data {
+    background: rgba(255, 255, 255, 0.05);
+    border-left: 2px solid var(--accent);
+}
+#task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100dvh - 280px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 10px 20px 0; /* Добавили отступ снизу для красоты */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 2. Тонкий скроллбар (чтобы не мешался) */
+#task-list::-webkit-scrollbar {
+    width: 3px;
+}
+#task-list::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 10px;
+    opacity: 0.5;
+}
+
+/* 3. Нижняя панель (если ты решишь добавить кнопки вниз) */
+.bottom-nav {
+    margin-top: auto; /* Прижимает навигацию к самому низу сайдбара */
+    display: flex;
+    justify-content: space-around;
+    padding: 15px 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+}
+
+/* 4. Дополнительный стиль для карточки задачи, чтобы она "пружинила" при клике */
+.task-item {
+    transition: transform 0.1s ease;
+    user-select: none;
+}
+.task-item:active {
+    transform: scale(0.98);
+}
+}@media (max-width: 768px) { .app-container { flex-direction: column; } .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); } }

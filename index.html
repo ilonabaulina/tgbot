@@ -59,7 +59,7 @@
             <div id="hourly-grid" class="hourly-schedule"></div>
         </div>
 
-<aside class="sidebar">
+<aside class="sidebar" id="main-sidebar">
     <div class="sidebar-content">
         <div class="sidebar-header">
             <h2 id="side-date">Задачи</h2>
@@ -94,15 +94,15 @@
             <div class="date-selector-row">
                 <button class="nav-arrow" onclick="changeSelectedDay(-1)">&lt;</button>
                 <div class="current-date-display" onclick="openMiniCalendar()">
-                    <span id="selected-date-text">12 апреля 2026</span>
+                    <span id="selected-date-text"></span>
                     <input type="date" id="hidden-date-picker" style="display:none" onchange="handleMiniCalChange(this.value)">
                 </div>
                 <button class="nav-arrow" onclick="changeSelectedDay(1)">&gt;</button>
             </div>
 
             <div class="add-task-box">
-    <input type="text" id="new-task-input" name="task_text" placeholder="Название или 'Шашлыки 15'">
-    <button id="add-task-btn">+</button>
+    <input type="text" id="new-task-input" name="task_text" placeholder="Название ">
+    <button id="add-task-btn" type="button">+</button>
             </div>
 
             <div class="time-picker-row">
@@ -111,8 +111,7 @@
             </div>
         </div>
 
-        <div id="task-list" class="task-list">
-            </div>
+        <div id="task-list" class="task-list"></div>
     </div>
 </aside>
     </div>

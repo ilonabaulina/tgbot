@@ -1,74 +1,131 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 import sqlite3
-from datetime import datetime
+import os
 
 app = Flask(__name__)
-# CORS важен, чтобы Telegram разрешил приложению стучаться к твоему серверу
-CORS(app, resources={r"/*": {"origins": "*"}})
 
 DB_PATH = 'bot_database.db'
 
+# 1. Настройка CORS
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, ngrok-skip-browser-warning'
+    return response
+
+
+# 2. Работа с базой данных
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Это позволит возвращать данные как словари
+    conn.row_factory = sqlite3.Row
     return conn
 
 
-# Замени в app.py эндпоинты на эти:
+def init_db():
+    """Создание таблиц при запуске, если их нет"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.executescript('''
+    CREATE TABLE IF NOT EXISTS users (
+        user_id INTEGER PRIMARY KEY,
+        username TEXT,
+        calendar_theme TEXT DEFAULT 'light',
+        group_number TEXT,
+        subgroup INTEGER DEFAULT 0
+    );
 
-@app.route('/add_task', methods=['POST'])
-def add_task():
-    data = request.json
-    user_id = data.get('user_id')
-    text = data.get('text')
-    # Ожидаем дату в формате YYYY-MM-DD и время HH:MM
-    date_str = data.get('date')
-    time_str = data.get('time', "09:00")
+    CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        task_text TEXT NOT NULL,
+        notify_at DATETIME,
+        is_done INTEGER DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+    );
+    ''')
+    conn.commit()
+    conn.close()
+    print("База данных проверена и готова к работе.")
 
-    try:
-        from db_functions import save_task_from_webapp
-        # Используем твою функцию из db_functions
-        success = save_task_from_webapp(user_id, text, date_str)
-        if success:
-            return jsonify({"success": True})
-        return jsonify({"error": "DB error"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route('/get_calendar_tasks/<int:user_id>', methods=['GET'])
-def get_calendar_tasks(user_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        # Вытягиваем задачи и из расписания, и из обычных тасков
-        cursor.execute("""
-            SELECT lesson_name as title, start_time as time, day_of_week 
-            FROM university_schedule WHERE user_id = ?
-        """, (user_id,))
-        rows = cursor.fetchall()
-        conn.close()
-        return jsonify([dict(row) for row in rows])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# --- ЭНДПОИНТЫ ---
 
-@app.route('/get_tasks')
+@app.route('/get_tasks', methods=['GET'])
 def get_tasks():
     user_id = request.args.get('user_id')
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Мы используем DATE(), чтобы отсечь время и оставить только ГГГГ-ММ-ДД
-        cursor.execute("SELECT task_text as text, DATE(notify_at) as date FROM tasks WHERE user_id = ?", (user_id,))
+        # Выбираем все поля, чтобы фронтенд знал ID и статус задачи
+        cursor.execute("""
+            SELECT id, task_text as text, 
+            DATE(notify_at) as date, 
+            TIME(notify_at) as time, 
+            is_done as completed 
+            FROM tasks WHERE user_id = ?
+        """, (user_id,))
         rows = cursor.fetchall()
         conn.close()
         return jsonify([dict(row) for row in rows])
     except Exception as e:
-        print(f"Ошибка БД: {e}")
-        return jsonify([])# Возвращаем пустой список, если что-то не так
+        print(f"Ошибка БД (get_tasks): {e}")
+        return jsonify([])
+
+
+@app.route('/add_task', methods=['POST'])
+def add_task():
+    data = request.json
+    try:
+        user_id = data.get('user_id')
+        text = data.get('text')
+        date_val = data.get('date')  # ГГГГ-ММ-ДД
+        time_val = data.get('time', '09:00')
+
+        full_datetime = f"{date_val} {time_val}:00"
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO tasks (user_id, task_text, notify_at, is_done) 
+            VALUES (?, ?, ?, 0)
+        """, (user_id, text, full_datetime))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"Ошибка при добавлении: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/update_task_status', methods=['POST', 'OPTIONS'])
+def update_task_status():
+    if request.method == 'OPTIONS':
+        return make_response()
+
+    try:
+        data = request.json
+        task_id = data.get('id')
+        # В твоей базе колонка называется is_done. Используем 1 или 0.
+        is_done_value = 1 if data.get('completed') else 0
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # ИСПРАВЛЕНО: Меняем is_done вместо completed
+        cursor.execute("UPDATE tasks SET is_done = ? WHERE id = ?", (is_done_value, task_id))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"Ошибка в БД (update_status): {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
-    # Запускаем на порту 5000.
-    # В PyCharm в консоли увидишь ссылку http://127.0.0.1:5000
+    init_db()  # Создаем таблицы перед запуском сервера
     app.run(host='0.0.0.0', port=5000, debug=True)
