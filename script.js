@@ -491,18 +491,16 @@ activeTasks.forEach(task => {
         }
     }
 
-    // ВАЖНО: Используем onclick вместо onchange для мобильного ТГ
-    div.innerHTML = `
-        <input type="checkbox" class="task-check" 
-               ${task.completed ? 'checked' : ''} 
-               onclick="updateTaskUI('${task.id}', this)">
-        <div class="task-info">
-            <div class="task-text">${task.text}</div>
-            <div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); margin-top: 4px;">
-                ${shortTime} | ${formattedDate}
-            </div>
-        </div>
-    `;
+div.innerHTML = 
+    '<input type="checkbox" class="task-check" ' + 
+    (task.completed ? 'checked' : '') + 
+    ' onclick="updateTaskUI(\'' + task.id + '\', this)">' +
+    '<div class="task-info">' +
+        '<div class="task-text">' + task.text + '</div>' +
+        '<div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4);">' +
+            shortTime + ' | ' + formattedDate +
+        '</div>' +
+    '</div>';
     taskList.appendChild(div);
 });
 }
