@@ -478,42 +478,33 @@ async function refreshTasks() {
     // 2. Сортируем
     activeTasks.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
-    activeTasks.forEach(task => {
-        const div = document.createElement('div');
-        div.className = 'task-item';
+activeTasks.forEach(task => {
+    const div = document.createElement('div');
+    div.className = 'task-item';
 
-        // 3. Убираем секунды (из "09:00:00" делаем "09:00")
-        const shortTime = task.time ? task.time.substring(0, 5) : "00:00";
-
-        // 4. Красиво форматируем дату (из "2026-04-14" в "14.04")
-        let formattedDate = "";
-        if (task.date) {
-            const dateParts = task.date.split('-');
-            if (dateParts.length === 3) {
-                formattedDate = `${dateParts[2]}.${dateParts[1]}`;
-            }
+    const shortTime = task.time ? task.time.substring(0, 5) : "00:00";
+    let formattedDate = "";
+    if (task.date) {
+        const dateParts = task.date.split('-');
+        if (dateParts.length === 3) {
+            formattedDate = `${dateParts[2]}.${dateParts[1]}`;
         }
+    }
 
-        // 5. Новая верстка: текст сверху, время и дата снизу
-        div.innerHTML = `
-           div.innerHTML = `
-    <input type="checkbox" class="task-check" 
-           ${task.completed ? 'checked' : ''} 
-           onclick="updateTaskUI('${task.id}', this)">
-    <div class="task-info">
-        <div class="task-text">${task.text}</div>
-        <div class="task-time">${shortTime} | ${formattedDate}</div>
-    </div>
-`;
-            <div class="task-info">
-                <div class="task-text">${task.text}</div>
-                <div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); margin-top: 4px;">
-                    ${shortTime} | ${formattedDate}
-                </div>
+    // ВАЖНО: Используем onclick вместо onchange для мобильного ТГ
+    div.innerHTML = `
+        <input type="checkbox" class="task-check" 
+               ${task.completed ? 'checked' : ''} 
+               onclick="updateTaskUI('${task.id}', this)">
+        <div class="task-info">
+            <div class="task-text">${task.text}</div>
+            <div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); margin-top: 4px;">
+                ${shortTime} | ${formattedDate}
             </div>
-        `;
-        taskList.appendChild(div);
-    });
+        </div>
+    `;
+    taskList.appendChild(div);
+});
 }
 init();
 // --- ТВОЙ НОВЫЙ ВТОРОЙ ПУНКТ (ГЛАВНЫЙ ДИСПЕТЧЕР ГАЛОЧЕК) ---
