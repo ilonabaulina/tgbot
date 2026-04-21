@@ -49,32 +49,16 @@ function renderCategorySelector() {
 }
 
 window.editCategoryName = function(id) {
-    // Ищем категорию, учитывая, что ID может быть и числом, и строкой
     const cat = categories.find(c => c.id === id || String(c.id) === String(id));
-    
     if (!cat) {
-        console.error("Категория не найдена в массиве categories. ID:", id);
+        console.error("Категория не найдена:", id);
         return;
     }
-
     const newName = prompt("Изменить название категории:", cat.name);
-    
     if (newName && newName.trim() !== "") {
         cat.name = newName.trim();
-        
-        // Сохраняем обновленный массив в localStorage
         localStorage.setItem('user-categories', JSON.stringify(categories));
-        
-        // Перерисовываем интерфейс, чтобы изменения сразу стали видны
-        if (typeof renderCategorySelector === 'function') {
-            renderCategorySelector();
-        }
-        
-        // Если открыто окно управления категориями, обновляем и его
-        const popup = document.getElementById('category-manager-popup');
-        if (popup && !popup.classList.contains('hidden')) {
-            renderCategoryManagerList();
-        }
+        if (typeof renderCategorySelector === 'function') renderCategorySelector();
     }
 };
 
@@ -378,10 +362,14 @@ document.addEventListener('mousedown', (e) => {
 
 document.addEventListener('keydown', async (e) => {
     if (e.target.classList.contains('hour-input-area') && e.key === 'Enter') {
-        e.preventDefault();
+        e.preventDefault(); // Запрещаем перенос строки
 
         const taskText = e.target.innerText.trim();
         const hour = e.target.getAttribute('data-hour');
+        
+        // Проверяем флажок "Важное" из основного сайдбара
+        const importantCheckbox = document.getElementById('is-important-checkbox');
+        const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
 
         if (!taskText) return;
 
@@ -395,19 +383,22 @@ document.addEventListener('keydown', async (e) => {
                 text: taskText,
                 date: dateStr,
                 time: `${hour.padStart(2, '0')}:00`,
-                category_id: selectedCategoryId
+                category_id: selectedCategoryId,
+                is_important: isImportant // Теперь флажок учитывается!
             })
         });
 
         if (response.ok) {
-            e.target.innerText = '';
+            e.target.innerText = ''; 
+            // Снимаем флажок после добавления, чтобы следующая задача не была важной по ошибке
+            if (importantCheckbox) importantCheckbox.checked = false;
+            
             await openDayDetail(selectedFullDate.getDate());
             await renderMonth();
             await refreshTasks();
         }
     }
 });
-
 function closeDayDetail() {
     document.getElementById('day-detail-view').classList.add('hidden');
     document.getElementById('month-view').classList.remove('hidden');
