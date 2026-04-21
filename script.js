@@ -49,12 +49,32 @@ function renderCategorySelector() {
 }
 
 window.editCategoryName = function(id) {
-    const cat = categories.find(c => c.id === id);
+    // Ищем категорию, учитывая, что ID может быть и числом, и строкой
+    const cat = categories.find(c => c.id === id || String(c.id) === String(id));
+    
+    if (!cat) {
+        console.error("Категория не найдена в массиве categories. ID:", id);
+        return;
+    }
+
     const newName = prompt("Изменить название категории:", cat.name);
+    
     if (newName && newName.trim() !== "") {
         cat.name = newName.trim();
+        
+        // Сохраняем обновленный массив в localStorage
         localStorage.setItem('user-categories', JSON.stringify(categories));
-        renderCategorySelector();
+        
+        // Перерисовываем интерфейс, чтобы изменения сразу стали видны
+        if (typeof renderCategorySelector === 'function') {
+            renderCategorySelector();
+        }
+        
+        // Если открыто окно управления категориями, обновляем и его
+        const popup = document.getElementById('category-manager-popup');
+        if (popup && !popup.classList.contains('hidden')) {
+            renderCategoryManagerList();
+        }
     }
 };
 
