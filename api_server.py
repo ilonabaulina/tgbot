@@ -11,9 +11,8 @@ DB_PATH = 'bot_database.db'
 CORS(app, resources={r"/*": {
     "origins": "*",
     "methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Content-Type", "ngrok-skip-browser-warning"]
+    "allow_headers": ["Content-Type", "ngrok-skip-browser-warning", "Accept"] # Добавили Accept
 }})
-
 
 # 2. Работа с базой данных
 def get_db_connection():
