@@ -58,7 +58,12 @@ html, body {
     flex-shrink: 0;
 }
 
-.header-left { display: flex; align-items: center; gap: 15px; }
+.header-left { 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    flex-wrap: nowrap; /* Чтобы не переносились на вторую строку */
+}
 
 .date-titles {
     cursor: pointer;
@@ -100,7 +105,23 @@ html, body {
     cursor: pointer;
     font-weight: 500;
 }
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Расстояние между < Сегодня > */
+    background: var(--card);
+    border-radius: 12px;
+    padding: 4px;
+}
 
+.nav-btn, .nav-arrow {
+    background: transparent !important;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .nav-arrow, .current-date-display {
     background: transparent !important;
     border: none;
@@ -455,6 +476,16 @@ input[type="time"] {
     padding: 10px;
     border-radius: 10px;
     cursor: pointer;
+}
+/* Фикс для мобилки, чтобы шапка не ломалась */
+@media (max-width: 768px) {
+    .header {
+        flex-wrap: nowrap; 
+        gap: 10px;
+    }
+    .date-titles {
+        font-size: 1.2rem; /* Чуть меньше текст на телефоне */
+    }
 }
 
 /* --- 10. МОБИЛЬНАЯ АДАПТАЦИЯ (ЖЕСТКАЯ) --- */
