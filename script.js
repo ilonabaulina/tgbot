@@ -289,15 +289,16 @@ async function openDayDetail(day) {
         });
 
         const taskHtml = tasksInThisHour.map(t => {
-            const cat = categories.find(c => c.id === t.category_id) || { color: 'var(--accent)' };
+            // ИСПОЛЬЗУЕМ НАШУ НОВУЮ ФУНКЦИЮ ДЛЯ ЦВЕТА
+            const cat = getCategoryById(t.category_id);
             return `
-                <div class="task-item-mini ${t.completed ? 'completed' : ''}"
-                     style="--task-color: ${cat.color}; border-left: 4px solid var(--task-color);">
-                    <input type="checkbox" class="task-check"
-                           ${t.completed ? 'checked' : ''}
+                <div class="task-item-mini ${t.completed ? 'completed' : ''}" 
+                     style="--task-color: ${cat.color}; border-left: 4px solid var(--task-color); margin-bottom: 4px;">
+                    <input type="checkbox" class="task-check" 
+                           ${t.completed ? 'checked' : ''} 
                            onchange="updateTaskUI('${t.id}', this)">
                     <span class="task-text" style="${t.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
-                        ${t.text}
+                        ${t.is_important == 1 ? '🚩 ' : ''}${t.text}
                     </span>
                 </div>
             `;
@@ -310,12 +311,11 @@ async function openDayDetail(day) {
                 </div>
                 <div class="hour-wrapper" style="flex: 1; padding: 5px 10px; display: flex; flex-direction: column;">
                     <div class="hour-tasks-list">${taskHtml}</div>
-                    <div class="hour-input-area"
-                         data-hour="${h}"
-                         contenteditable="true"
-                         onfocus="if(this.innerText.trim()==='') this.style.opacity='1'"
-                         onblur="if(this.innerText.trim()==='') this.style.opacity='0.4'"
-                         style="outline: none; min-height: 20px; font-size: 0.8rem; color: var(--accent); opacity: 0.4; transition: 0.2s;"></div>
+                    <div class="hour-input-area" 
+                         data-hour="${h}" 
+                         contenteditable="true" 
+                         placeholder="Введите задачу..."
+                         style="outline: none; min-height: 20px; font-size: 0.8rem; color: ${getCategoryById(selectedCategoryId).color}; opacity: 0.6; transition: 0.2s;"></div>
                 </div>
             </div>`;
     }
@@ -362,12 +362,11 @@ document.addEventListener('mousedown', (e) => {
 
 document.addEventListener('keydown', async (e) => {
     if (e.target.classList.contains('hour-input-area') && e.key === 'Enter') {
-        e.preventDefault(); // Запрещаем перенос строки
+        e.preventDefault(); 
 
         const taskText = e.target.innerText.trim();
         const hour = e.target.getAttribute('data-hour');
         
-        // Проверяем флажок "Важное" из основного сайдбара
         const importantCheckbox = document.getElementById('is-important-checkbox');
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
 
@@ -375,6 +374,7 @@ document.addEventListener('keydown', async (e) => {
 
         const dateStr = selectedFullDate.toISOString().split('T')[0];
 
+        // МЕХАНИКА: Берем текущую выбранную категорию из сайдбара
         const response = await fetch(`${API_URL}/add_task`, {
             method: 'POST',
             headers: COMMON_HEADERS,
@@ -383,16 +383,13 @@ document.addEventListener('keydown', async (e) => {
                 text: taskText,
                 date: dateStr,
                 time: `${hour.padStart(2, '0')}:00`,
-                category_id: selectedCategoryId,
-                is_important: isImportant // Теперь флажок учитывается!
+                category_id: selectedCategoryId, // Применяем ту, что выбрана наверху
+                is_important: isImportant
             })
         });
 
         if (response.ok) {
             e.target.innerText = ''; 
-            // Снимаем флажок после добавления, чтобы следующая задача не была важной по ошибке
-            if (importantCheckbox) importantCheckbox.checked = false;
-            
             await openDayDetail(selectedFullDate.getDate());
             await renderMonth();
             await refreshTasks();
@@ -680,6 +677,63 @@ window.deleteCategoryFull = async function(id) {
         console.error("Ошибка удаления", e);
     }
 };
+// Находит категорию по ID (нужно для цвета флажка)
+function getCategoryById(id) {
+    const category = categories.find(c => String(c.id) === String(id));
+    return category || categories[0]; // Если не нашли, вернем "Общее"
+}
+
+// Создает карточку задачи с учетом цвета её категории
+function createTaskElement(task) {
+    const category = getCategoryById(task.categoryId);
+    const taskEl = document.createElement('div');
+    taskEl.className = 'task-card';
+    
+    // Применяем цвет категории к левой границе
+    taskEl.style.borderLeft = `4px solid ${category.color}`;
+    
+    taskEl.innerHTML = `
+        <div class="task-info">
+            <span class="task-time">${task.time}</span>
+            <span class="task-name">${task.name}</span>
+        </div>
+        ${task.isImportant ? '<span class="important-flag">🚩</span>' : ''}
+    `;
+    return taskEl;
+}
+
+function renderDayView(selectedDate) {
+    const container = document.getElementById('day-view-container');
+    if (!container) return;
+    container.innerHTML = ''; 
+
+    // 1. Берем задачи на день и сортируем (11:00, 11:15, 11:45...)
+    const dayTasks = tasks
+        .filter(t => t.date === selectedDate)
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+    // 2. Рисуем сетку 24 часа
+    for (let hour = 0; hour < 24; hour++) {
+        const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+        
+        // Рисуем заголовок часа (линию)
+        const hourRow = document.createElement('div');
+        hourRow.className = 'hour-row';
+        hourRow.innerHTML = `<span class="time-label">${hourStr}</span><div class="hour-line"></div>`;
+        container.appendChild(hourRow);
+
+        // 3. Ищем задачи, которые относятся к этому часу (например, с 11:00 до 11:59)
+        const tasksInThisHour = dayTasks.filter(t => {
+            const h = parseInt(t.time.split(':')[0]);
+            return h === hour;
+        });
+
+        // 4. Вставляем их СРАЗУ под линией этого часа
+        tasksInThisHour.forEach(task => {
+            container.appendChild(createTaskElement(task));
+        });
+    }
+}
 
 window.editCategoryFull = async function(id) {
     const cat = categories.find(c => c.id == id);
