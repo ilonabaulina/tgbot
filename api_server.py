@@ -14,13 +14,6 @@ CORS(app, resources={r"/*": {
     "allow_headers": ["Content-Type", "ngrok-skip-browser-warning"]
 }})
 
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, ngrok-skip-browser-warning'
-    return response
-
 
 # 2. Работа с базой данных
 def get_db_connection():
@@ -30,16 +23,20 @@ def get_db_connection():
 
 
 def init_db():
-    """Создание таблиц при запуске, если их нет"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.executescript('''
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY,
         username TEXT,
-        calendar_theme TEXT DEFAULT 'light',
-        group_number TEXT,
-        subgroup INTEGER DEFAULT 0
+        calendar_theme TEXT DEFAULT 'light'
+    );
+
+    CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS tasks (
@@ -48,9 +45,11 @@ def init_db():
         task_text TEXT NOT NULL,
         notify_at DATETIME,
         is_done INTEGER DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users (user_id)
+        is_important INTEGER DEFAULT 0,
+        category_id TEXT
     );
     ''')
+    # Добавим дефолтные категории для нового пользователя, если их нет
     conn.commit()
     conn.close()
     print("База данных проверена и готова к работе.")
@@ -64,44 +63,77 @@ def get_tasks():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Выбираем все поля, чтобы фронтенд знал ID и статус задачи
         cursor.execute("""
-            SELECT id, task_text as text, 
-            DATE(notify_at) as date, 
-            TIME(notify_at) as time, 
-            is_done as completed 
-            FROM tasks WHERE user_id = ?
+            SELECT 
+                id, 
+                task_text as text, 
+                notify_at,  -- Берем сырую строку "2026-04-20 09:00:00"
+                is_done as completed,
+                is_important,
+                category_id
+            FROM tasks 
+            WHERE user_id = ?
         """, (user_id,))
         rows = cursor.fetchall()
         conn.close()
-        return jsonify([dict(row) for row in rows])
+
+        result = []
+        for row in rows:
+            d = dict(row)
+            # Разбиваем "2026-04-20 09:00:00" на дату и время вручную для надежности
+            full_dt = d.get('notify_at', '')
+            if full_dt and ' ' in full_dt:
+                d['date'], d['time'] = full_dt.split(' ')
+            else:
+                d['date'] = full_dt
+                d['time'] = "00:00"
+            result.append(d)
+
+        return jsonify(result)
     except Exception as e:
         print(f"Ошибка БД (get_tasks): {e}")
         return jsonify([])
 
-
 @app.route('/add_task', methods=['POST'])
 def add_task():
-    data = request.json
     try:
+        data = request.json
+
         user_id = data.get('user_id')
         text = data.get('text')
-        date_val = data.get('date')  # ГГГГ-ММ-ДД
+        date_val = data.get('date')
         time_val = data.get('time', '09:00')
+        is_important = data.get('is_important', 0)
+        category_id = data.get('category_id')
+
+        # защита от None
+        if not user_id or not text or not date_val:
+            return jsonify({"error": "missing data"}), 400
 
         full_datetime = f"{date_val} {time_val}:00"
 
         conn = get_db_connection()
         cursor = conn.cursor()
+
         cursor.execute("""
-            INSERT INTO tasks (user_id, task_text, notify_at, is_done) 
-            VALUES (?, ?, ?, 0)
-        """, (user_id, text, full_datetime))
+            INSERT INTO tasks (
+                user_id, 
+                task_text, 
+                notify_at, 
+                is_done, 
+                is_important, 
+                category_id
+            ) 
+            VALUES (?, ?, ?, 0, ?, ?)
+        """, (user_id, text, full_datetime, is_important, category_id))
+
         conn.commit()
         conn.close()
+
         return jsonify({"success": True})
+
     except Exception as e:
-        print(f"Ошибка при добавлении: {e}")
+        print("Ошибка при добавлении:", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -127,6 +159,38 @@ def update_task_status():
     except Exception as e:
         print(f"Ошибка в БД (update_status): {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/get_categories', methods=['GET', 'OPTIONS'])
+def get_categories():
+        if request.method == 'OPTIONS': return make_response()
+        user_id = request.args.get('user_id')
+        conn = get_db_connection()
+        rows = conn.execute("SELECT id, name, color FROM categories WHERE user_id = ?", (user_id,)).fetchall()
+        conn.close()
+        return jsonify([dict(r) for r in rows])
+
+@app.route('/add_category', methods=['POST', 'OPTIONS'])
+def add_category():
+        if request.method == 'OPTIONS': return make_response()
+        data = request.json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO categories (user_id, name, color) VALUES (?, ?, ?)",
+                       (data['user_id'], data['name'], data['color']))
+        new_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({"id": new_id, "name": data['name'], "color": data['color']})
+
+@app.route('/delete_category', methods=['POST', 'OPTIONS'])
+def delete_category():
+        if request.method == 'OPTIONS': return make_response()
+        data = request.json
+        conn = get_db_connection()
+        conn.execute("DELETE FROM categories WHERE id = ? AND user_id = ?", (data['category_id'], data['user_id']))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True})
 
 
 if __name__ == '__main__':
