@@ -1,5 +1,6 @@
 let currentViewDate = new Date(); // Текущий месяц в календаре
 let selectedFullDate = new Date(); // День, выбранный в сайдбаре
+let tasks = [];
 const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev"; // Твой сервер
 const USER_ID = 12345; // Твой ID (или из Telegram WebApp)
 
@@ -167,6 +168,7 @@ function setupTasks() {
     const taskInput = document.getElementById('new-task-input');
     const addBtn = document.getElementById('add-task-btn');
     const importantCheckbox = document.getElementById('is-important-checkbox');
+    const timePicker = document.getElementById('task-time-picker');
 
     if (!taskInput || !addBtn) return;
 
@@ -179,19 +181,24 @@ function setupTasks() {
         let text = taskInput.value.trim();
         if (!text) return;
 
+        // Определяем дату и важность
         const dateStr = selectedFullDate.toISOString().split('T')[0];
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
 
-        let hour = "09", minute = "00";
+        // --- ЛОГИКА ВРЕМЕНИ (11:15) ---
+        // По умолчанию берем то, что выбрано в селекторе времени
+        let taskTime = timePicker ? timePicker.value : "09:00";
+
+        // Проверяем, не написала ли ты время прямо в тексте задачи
         const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
         if (timeMatch) {
-            hour = timeMatch[1].padStart(2, '0');
-            minute = timeMatch[2].padStart(2, '0');
+            const h = timeMatch[1].padStart(2, '0');
+            const m = timeMatch[2].padStart(2, '0');
+            taskTime = `${h}:${m}`;
+            // Убираем время из текста названия, чтобы не дублировалось
             text = text.replace(timeMatch[0], "").trim();
-        } else {
-            const timePicker = document.getElementById('task-time-picker');
-            if (timePicker) [hour, minute] = timePicker.value.split(':');
         }
+        // ------------------------------
 
         try {
             const response = await fetch(`${API_URL}/add_task`, {
@@ -201,7 +208,7 @@ function setupTasks() {
                     user_id: USER_ID,
                     text: text,
                     date: dateStr,
-                    time: `${hour}:${minute}`,
+                    time: taskTime, // Отправляем полное время HH:MM
                     category_id: selectedCategoryId,
                     is_important: isImportant
                 })
@@ -211,10 +218,10 @@ function setupTasks() {
                 taskInput.value = '';
                 if (importantCheckbox) importantCheckbox.checked = false;
                 await renderMonth();
-                await refreshTasks();
+                await refreshTasks(); // Эта функция обновит глобальный массив tasks
             }
         } catch (err) {
-            console.error("Ошибка при отправке:", err);
+            console.error("Ошибка при отправке задачи:", err);
         }
     };
 
@@ -703,38 +710,45 @@ function createTaskElement(task) {
 }
 
 function renderDayView(selectedDate) {
-    const container = document.getElementById('day-view-container');
-    if (!container) return;
+    // 1. Исправленный ID: ищем именно тот контейнер, который есть в index.html
+    const container = document.getElementById('hourly-grid');
+    if (!container) {
+        console.error("Контейнер hourly-grid не найден!");
+        return;
+    }
     container.innerHTML = ''; 
 
-    // 1. Берем задачи на день и сортируем (11:00, 11:15, 11:45...)
-    const dayTasks = tasks
+    // Проверяем, что глобальный массив задач существует
+    const allTasks = (typeof tasks !== 'undefined') ? tasks : [];
+
+    // 2. Берем задачи на выбранную дату и сортируем (11:00, 11:15, 11:45...)
+    const dayTasks = allTasks
         .filter(t => t.date === selectedDate)
         .sort((a, b) => a.time.localeCompare(b.time));
 
-    // 2. Рисуем сетку 24 часа
+    // 3. Рисуем сетку 24 часа
     for (let hour = 0; hour < 24; hour++) {
         const hourStr = `${hour.toString().padStart(2, '0')}:00`;
         
-        // Рисуем заголовок часа (линию)
+        // Создаем заголовок часа
         const hourRow = document.createElement('div');
         hourRow.className = 'hour-row';
         hourRow.innerHTML = `<span class="time-label">${hourStr}</span><div class="hour-line"></div>`;
         container.appendChild(hourRow);
 
-        // 3. Ищем задачи, которые относятся к этому часу (например, с 11:00 до 11:59)
+        // Ищем задачи, которые попадают в этот час (например, 11:15 -> час 11)
         const tasksInThisHour = dayTasks.filter(t => {
+            if (!t.time) return false;
             const h = parseInt(t.time.split(':')[0]);
             return h === hour;
         });
 
-        // 4. Вставляем их СРАЗУ под линией этого часа
+        // Вставляем карточки задач СРАЗУ под линией часа
         tasksInThisHour.forEach(task => {
             container.appendChild(createTaskElement(task));
         });
     }
 }
-
 window.editCategoryFull = async function(id) {
     const cat = categories.find(c => c.id == id);
     const newName = prompt("Новое название категории:", cat.name);
