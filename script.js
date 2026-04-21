@@ -1,5 +1,3 @@
-
-// 1. Глобальные переменные (проверь их наличие в самом начале файла)
 let currentViewDate = new Date(); // Текущий месяц в календаре
 let selectedFullDate = new Date(); // День, выбранный в сайдбаре
 const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev"; // Твой сервер
@@ -7,33 +5,79 @@ const USER_ID = 12345; // Твой ID (или из Telegram WebApp)
 
 const COMMON_HEADERS = {
     'ngrok-skip-browser-warning': '69420',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
 };
 
-// Массив месяцев для заголовка (если его нет внутри функции)
+// Массив месяцев для заголовка
 const months = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
 ];
+
+// Начальный набор категорий
+let categories = JSON.parse(localStorage.getItem('user-categories')) || [
+    { id: 'cat1', name: 'Общее', color: '#ff453a' },
+    { id: 'cat2', name: 'Учеба', color: '#af52de' },
+    { id: 'cat3', name: 'Работа', color: '#34c759' }
+];
+
+let selectedCategoryId = 'cat1'; // Какая категория выбрана сейчас при создании
+
 async function init() {
+    await fetchCategories();
     await renderMonth();
-    setupTasks(); // <--- Она должна быть тут
+    setupTasks();
     applySavedAccent();
     updateDateDisplay();
-    await refreshTasks(); // <--- И это тоже
+    await refreshTasks();
+    renderCategorySelector();
 }
 
-// --- 1. ЗАГРУЗКА И ОТРИСОВКА КАЛЕНДАРЯ ---
+function renderCategorySelector() {
+    const container = document.getElementById('category-selector');
+    if (!container) return;
+
+    container.innerHTML = categories.map(cat => `
+        <div class="cat-chip ${selectedCategoryId === cat.id ? 'active' : ''}"
+             style="--cat-color: ${cat.color}"
+             onclick="selectCategory('${cat.id}')"
+             ondblclick="editCategoryName('${cat.id}')">
+            ${cat.name}
+        </div>
+    `).join('');
+}
+
+window.editCategoryName = function(id) {
+    const cat = categories.find(c => c.id === id);
+    const newName = prompt("Изменить название категории:", cat.name);
+    if (newName && newName.trim() !== "") {
+        cat.name = newName.trim();
+        localStorage.setItem('user-categories', JSON.stringify(categories));
+        renderCategorySelector();
+    }
+};
+
+function selectCategory(id) {
+    selectedCategoryId = id;
+    renderCategorySelector();
+}
+
 async function fetchTasks() {
     try {
         const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
             method: 'GET',
-            headers: COMMON_HEADERS // <--- Здесь теперь порядок
+            headers: COMMON_HEADERS
         });
-        if (!res.ok) throw new Error('Ошибка сети');
-        return await res.json();
+
+        if (!res.ok) {
+            console.warn("Сервер недоступен, показываю пустой планнер");
+            return [];
+        }
+
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
     } catch (e) {
-        console.error("Сервер недоступен:", e);
         return [];
     }
 }
@@ -49,133 +93,133 @@ async function renderMonth() {
     if (document.getElementById('m-title')) document.getElementById('m-title').innerText = months[m];
     if (document.getElementById('y-title')) document.getElementById('y-title').innerText = y;
 
-    // Расчет пустых ячеек (Пн-Вс)
     let firstDay = new Date(y, m, 1).getDay();
     let shift = (firstDay === 0) ? 6 : firstDay - 1;
     let daysInMonth = new Date(y, m + 1, 0).getDate();
 
-    const tasks = await fetchTasks();
+    const allTasks = await fetchTasks();
 
-    // 2. Рисуем пустые ячейки до начала месяца
     for (let i = 0; i < shift; i++) {
         const div = document.createElement('div');
         div.className = 'day empty';
         grid.appendChild(div);
     }
 
-    // 3. Рисуем дни месяца
     for (let d = 1; d <= daysInMonth; d++) {
         const now = new Date();
         const isToday = (d === now.getDate() && m === now.getMonth() && y === now.getFullYear());
-
-        // Форматируем дату текущего дня для сравнения с БД (ГГГГ-ММ-ДД)
-        const currentDayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;       // Проверяем наличие ТОЛЬКО НЕВЫПОЛНЕННЫХ задач на этот день
-// ЛОГИКА: Плашка (badge) рисуется только если есть НЕВЫПОЛНЕННЫЕ задачи
-        const hasActiveTasks = tasks.some(t =>
-            t.date && t.date.startsWith(currentDayStr) && t.completed == 0
-        );
+        const currentDayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
         const dayNode = document.createElement('div');
         dayNode.className = `day ${isToday ? 'today' : ''}`;
 
-        if (d === selectedFullDate.getDate() &&
-            m === selectedFullDate.getMonth() &&
-            y === selectedFullDate.getFullYear()) {
+        if (d === selectedFullDate.getDate() && m === selectedFullDate.getMonth() && y === selectedFullDate.getFullYear()) {
             dayNode.classList.add('selected');
         }
 
-        dayNode.innerText = d;
+        dayNode.innerHTML = `<span>${d}</span>`;
 
-        if (hasActiveTasks) {
-            dayNode.classList.add('has-tasks');
-            const badge = document.createElement('div');
-            badge.className = 'task-badge';
-            dayNode.appendChild(badge);
+        // ЛОГИКА ПОЛОСОЧЕК
+        const dayTasks = allTasks.filter(t => t.date && t.date.startsWith(currentDayStr) && t.completed == 0);
+
+        if (dayTasks.length > 0) {
+            const badgeContainer = document.createElement('div');
+            badgeContainer.className = 'task-lines-container';
+
+            const uniqueColors = [...new Set(dayTasks.map(t => {
+                const cat = categories.find(c => c.id === t.category_id);
+                return cat ? cat.color : '#ff453a';
+            }))];
+
+            uniqueColors.forEach(color => {
+                const line = document.createElement('div');
+                line.className = 'day-line';
+                line.style.background = color;
+                badgeContainer.appendChild(line);
+            });
+            dayNode.appendChild(badgeContainer);
         }
 
         dayNode.onclick = async () => {
+            console.log("Клик по дню:", d);
             selectedFullDate = new Date(y, m, d);
             updateDateDisplay();
             await renderMonth();
-            openDayDetail(d);
+
+            if (typeof openDayDetail === 'function') {
+                openDayDetail(d);
+            } else {
+                console.error("Функция openDayDetail не найдена!");
+            }
+
             await refreshTasks();
         };
 
         grid.appendChild(dayNode);
     }
 }
-// --- 2. УМНЫЙ ВВОД ---
+
 function setupTasks() {
     const taskInput = document.getElementById('new-task-input');
     const addBtn = document.getElementById('add-task-btn');
+    const importantCheckbox = document.getElementById('is-important-checkbox');
 
-    if (!taskInput || !addBtn) {
-        console.error("Критическая ошибка: элементы ввода не найдены!");
-        return;
-    }
+    if (!taskInput || !addBtn) return;
 
     const performSubmit = async (e) => {
-        // Останавливаем любое стандартное поведение браузера
         if (e) {
             e.preventDefault();
             e.stopPropagation();
         }
 
-        let rawText = taskInput.value.trim();
-        console.log("Попытка отправить задачу:", rawText); // Проверка в консоли
+        let text = taskInput.value.trim();
+        if (!text) return;
 
-        if (!rawText) return;
-
-        const dateStr = `${selectedFullDate.getFullYear()}-${String(selectedFullDate.getMonth() + 1).padStart(2, '0')}-${String(selectedFullDate.getDate()).padStart(2, '0')}`;
+        const dateStr = selectedFullDate.toISOString().split('T')[0];
+        const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
 
         let hour = "09", minute = "00";
-        const timeMatch = rawText.match(/(\d{1,2})[:.](\d{2})/) || rawText.match(/(?<!\d)(\d{1,2})(?!\d)$/);
-
+        const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
         if (timeMatch) {
             hour = timeMatch[1].padStart(2, '0');
-            minute = (timeMatch[2] || "00").padStart(2, '0');
-            rawText = rawText.replace(timeMatch[0], "").trim();
+            minute = timeMatch[2].padStart(2, '0');
+            text = text.replace(timeMatch[0], "").trim();
+        } else {
+            const timePicker = document.getElementById('task-time-picker');
+            if (timePicker) [hour, minute] = timePicker.value.split(':');
         }
 
         try {
             const response = await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': '69420'
-                },
+                headers: COMMON_HEADERS,
                 body: JSON.stringify({
                     user_id: USER_ID,
-                    text: rawText || "Напоминание",
+                    text: text,
                     date: dateStr,
-                    time: `${hour}:${minute}`
+                    time: `${hour}:${minute}`,
+                    category_id: selectedCategoryId,
+                    is_important: isImportant
                 })
             });
 
             if (response.ok) {
-                console.log("Задача успешно добавлена!");
                 taskInput.value = '';
+                if (importantCheckbox) importantCheckbox.checked = false;
                 await renderMonth();
-                if (typeof refreshTasks === 'function') await refreshTasks();
-            } else {
-                console.error("Ошибка сервера:", response.status);
+                await refreshTasks();
             }
         } catch (err) {
-            console.error("Ошибка сети:", err);
+            console.error("Ошибка при отправке:", err);
         }
     };
 
-    // Вешаем событие на кнопку ПРЯМЫМ способом
-    addBtn.onclick = performSubmit;
-
-    // Вешаем событие на Enter
-    taskInput.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-            performSubmit(e);
-            }
-        };
+    addBtn.addEventListener('click', performSubmit);
+    taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSubmit(e);
+    });
 }
-// --- 3. НАВИГАЦИЯ (ГОД, НАСТРОЙКИ, ДЕТАЛИ) ---
+
 function showYearPicker() {
     const container = document.getElementById('months-container');
     container.innerHTML = '';
@@ -221,6 +265,7 @@ function toggleSettings() {
 async function openDayDetail(day) {
     document.getElementById('detail-date-title').innerText = `${day} ${months[currentViewDate.getMonth()]}`;
     const hGrid = document.getElementById('hourly-grid');
+    if (!hGrid) return;
     hGrid.innerHTML = '';
 
     const y = currentViewDate.getFullYear();
@@ -232,34 +277,41 @@ async function openDayDetail(day) {
 
     for (let h = 0; h < 24; h++) {
         const hourStr = String(h).padStart(2, '0');
+
         const tasksInThisHour = tasks.filter(t => {
             const taskDate = t.date ? t.date.split(' ')[0] : "";
             const taskHour = t.time ? t.time.split(':')[0] : "";
             return taskDate === fullDateStr && taskHour === hourStr;
         });
 
-        // Формируем HTML для каждой задачи в этом часе с чекбоксом
-const taskHtml = tasksInThisHour.map(t => `
-    <div class="task-item-mini ${t.completed ? 'completed' : ''}"
-         style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-        <input type="checkbox" class="task-check"
-               ${t.completed ? 'checked' : ''}
-               onchange="updateTaskUI('${t.id}', this)">
-        <span class="task-text" style="${t.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
-            ${t.text}
-        </span>
-    </div>
-`).join('');
+        const taskHtml = tasksInThisHour.map(t => {
+            const cat = categories.find(c => c.id === t.category_id) || { color: 'var(--accent)' };
+            return `
+                <div class="task-item-mini ${t.completed ? 'completed' : ''}"
+                     style="--task-color: ${cat.color}; border-left: 4px solid var(--task-color);">
+                    <input type="checkbox" class="task-check"
+                           ${t.completed ? 'checked' : ''}
+                           onchange="updateTaskUI('${t.id}', this)">
+                    <span class="task-text" style="${t.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
+                        ${t.text}
+                    </span>
+                </div>
+            `;
+        }).join('');
 
         hGrid.innerHTML += `
-            <div class="hour-row" style="min-height: 45px; border-bottom: 1px solid var(--border); display: flex;">
-                <div class="time-label" style="width: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border);">
+            <div class="hour-row" style="min-height: 45px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex;">
+                <div class="time-label" style="width: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-size: 0.7rem; color: #8e8e93;">
                     ${h}:00
                 </div>
-                <div class="hour-content ${tasksInThisHour.length > 0 ? 'has-data' : ''}"
-                     data-hour="${h}"
-                     style="flex: 1; padding: 5px 10px; display: flex; flex-direction: column; justify-content: center;">
-                    ${taskHtml || '<span style="opacity: 0.2; font-size: 0.7rem;">Свободно</span>'}
+                <div class="hour-wrapper" style="flex: 1; padding: 5px 10px; display: flex; flex-direction: column;">
+                    <div class="hour-tasks-list">${taskHtml}</div>
+                    <div class="hour-input-area"
+                         data-hour="${h}"
+                         contenteditable="true"
+                         onfocus="if(this.innerText.trim()==='') this.style.opacity='1'"
+                         onblur="if(this.innerText.trim()==='') this.style.opacity='0.4'"
+                         style="outline: none; min-height: 20px; font-size: 0.8rem; color: var(--accent); opacity: 0.4; transition: 0.2s;"></div>
                 </div>
             </div>`;
     }
@@ -268,12 +320,79 @@ const taskHtml = tasksInThisHour.map(t => `
     document.getElementById('day-detail-view').classList.remove('hidden');
 }
 
+document.addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('hour-input-area')) {
+        if (e.target.innerText.trim() === '') {
+            e.target.innerText = '';
+        }
+        e.target.style.opacity = '1';
+    }
+});
+
+document.addEventListener('focusout', (e) => {
+    if (e.target.classList.contains('hour-input-area')) {
+        if (e.target.innerText.trim() === '') {
+            e.target.innerText = '';
+            e.target.style.opacity = '0.4';
+        }
+    }
+});
+
+document.addEventListener('mousedown', (e) => {
+    const settingsMenu = document.getElementById('settings-menu');
+    const categoryPopup = document.getElementById('category-manager-popup');
+    const settingsBtn = document.querySelector('.icon-btn');
+
+    if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
+        if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
+            settingsMenu.classList.add('hidden');
+        }
+    }
+
+    if (categoryPopup && !categoryPopup.classList.contains('hidden')) {
+        if (!categoryPopup.contains(e.target)) {
+            categoryPopup.classList.add('hidden');
+        }
+    }
+});
+
+document.addEventListener('keydown', async (e) => {
+    if (e.target.classList.contains('hour-input-area') && e.key === 'Enter') {
+        e.preventDefault();
+
+        const taskText = e.target.innerText.trim();
+        const hour = e.target.getAttribute('data-hour');
+
+        if (!taskText) return;
+
+        const dateStr = selectedFullDate.toISOString().split('T')[0];
+
+        const response = await fetch(`${API_URL}/add_task`, {
+            method: 'POST',
+            headers: COMMON_HEADERS,
+            body: JSON.stringify({
+                user_id: USER_ID,
+                text: taskText,
+                date: dateStr,
+                time: `${hour.padStart(2, '0')}:00`,
+                category_id: selectedCategoryId
+            })
+        });
+
+        if (response.ok) {
+            e.target.innerText = '';
+            await openDayDetail(selectedFullDate.getDate());
+            await renderMonth();
+            await refreshTasks();
+        }
+    }
+});
+
 function closeDayDetail() {
     document.getElementById('day-detail-view').classList.add('hidden');
     document.getElementById('month-view').classList.remove('hidden');
 }
 
-// --- 4. ЦВЕТА ---
 function changeAccent(color) {
     document.documentElement.style.setProperty('--accent', color);
     localStorage.setItem('user-accent', color);
@@ -288,23 +407,27 @@ function applySavedAccent() {
     }
 }
 
-function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); renderMonth(); }
-function goToday() { currentViewDate = new Date(); renderMonth(); }
+function changeMonth(d) {
+    currentViewDate.setMonth(currentViewDate.getMonth() + d);
+    renderMonth();
+}
 
-// 1. Переключение выбранного дня стрелочками в сайдбаре
+function goToday() {
+    currentViewDate = new Date();
+    renderMonth();
+}
+
 function changeSelectedDay(offset) {
     const selected = document.querySelector('.day.selected');
     let targetDay;
 
     if (selected) {
-        // Находим следующий/предыдущий элемент в сетке календаря
         const allDays = Array.from(document.querySelectorAll('.day:not(.empty)'));
         const index = allDays.indexOf(selected);
         if (allDays[index + offset]) {
-            allDays[index + offset].click(); // Симулируем клик по дню
+            allDays[index + offset].click();
         }
     } else {
-        // Если ничего не выбрано, выбираем сегодня
         document.querySelector('.day.today')?.click();
     }
 }
@@ -327,63 +450,14 @@ function highlightDayInGrid(dayNumber) {
     });
 }
 
-// Модифицируем saveTask, чтобы она брала именно выбранную стрелочками дату
-async function saveTask() {
-    const input = document.getElementById('new-task-input');
-    let text = input.value.trim();
-    if (!text) return;
-
-    // Формируем дату для отправки на сервер (ГГГГ-ММ-ДД)
-    const dateStr = selectedFullDate.toISOString().split('T')[0];
-
-    // ... тут твой код парсинга времени из прошлого сообщения ...
-
-    // После успешного добавления (res.ok):
-    // 1. Очищаем инпут
-    input.value = '';
-    // 2. Добавляем в список С ГАЛОЧКОЙ (как ты просила)
-    const taskList = document.getElementById('task-list');
-    const div = document.createElement('div');
-    div.className = 'task-item';
-    div.innerHTML = `
-        <input type="checkbox" class="task-check">
-        <span class="task-text">${text}</span>
-    `;
-    taskList.prepend(div);
-
-    // 3. Перерисовываем календарь, чтобы появилась плашка на этот день
-    renderMonth();
-}
-
 function openMiniCalendar() {
-    // Вызываем нативный календарь
     document.getElementById('hidden-date-picker').showPicker();
 }
 
 function handleMiniCalChange(dateString) {
     if (!dateString) return;
-    // Обновляем нашу глобальную переменную даты
     selectedFullDate = new Date(dateString);
-    // Обновляем текст в сайдбаре и выделение в большой сетке
     updateDateDisplay();
-    // Если у тебя есть функция отрисовки задач на день — вызываем её
-   // loadTasksForDay(selectedFullDate);
-}
-
-function createTaskElement(task) {
-    const div = document.createElement('div');
-    div.className = `task-item ${task.completed ? 'completed' : ''}`;
-    div.dataset.id = task.id; // сохраняем ID для API
-
-    div.innerHTML = `
-        <input type="checkbox" class="task-check" ${task.completed ? 'checked' : ''}
-               onchange="toggleTaskStatus('${task.id}', this.checked)">
-        <div class="task-info">
-            <span class="task-text">${task.text}</span>
-            <span class="task-time">${task.time}</span>
-        </div>
-    `;
-    return div;
 }
 
 async function toggleTaskStatus(taskId, isCompleted) {
@@ -391,74 +465,30 @@ async function toggleTaskStatus(taskId, isCompleted) {
         const response = await fetch(`${API_URL}/update_task_status`, {
             method: 'POST',
             headers: COMMON_HEADERS,
-            body: JSON.stringify({ id: taskId, completed: isCompleted })
+            body: JSON.stringify({ id: taskId, completed: isCompleted ? 1 : 0 })
         });
         return response.ok;
     } catch (e) {
-        console.error("Ошибка обновления статуса:", e);
         return false;
     }
 }
 
-// Сохранение отредактированного текста
-async function saveTaskEdit(taskId, element) {
-    const newText = element.innerText.trim();
-    try {
-        await fetch(`${API_URL}/update_task_text`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-            },
-            body: JSON.stringify({ id: taskId, text: newText })
-        });
-        console.log("Сохранено:", newText);
-    } catch (e) {
-        console.error("Ошибка сохранения текста:", e);
+window.updateTaskUI = async (taskId, checkbox) => {
+    const isDone = checkbox.checked;
+    const taskItem = checkbox.closest('.task-item') || checkbox.closest('.task-item-mini');
+
+    if (taskItem) {
+        taskItem.classList.toggle('completed', isDone);
     }
-}
 
-// Логика перетаскивания задач в списке
-function initDragAndDrop() {
-    const container = document.getElementById('task-list');
-    container.addEventListener('dragover', e => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(container, e.clientY);
-        const dragging = document.querySelector('.dragging');
-        if (afterElement == null) {
-            container.appendChild(dragging);
-        } else {
-            container.insertBefore(dragging, afterElement);
-        }
-    });
-}
+    const success = await toggleTaskStatus(taskId, isDone);
 
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.task-item:not(.dragging)')];
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
-        }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
-//init();
-// Функция для отправки статуса на сервер
-async function toggleTaskStatus(taskId, isCompleted) {
-    try {
-        await fetch(`${API_URL}/update_task_status`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id: taskId, completed: isCompleted })
-        });
-    } catch (e) { console.error("Ошибка обновления статуса:", e); }
-}
-document.addEventListener('DOMContentLoaded', () => {
-    setupTasks(); // Еще раз принудительно привязываем кнопку после загрузки страницы
-});
+    if (success) {
+        await refreshTasks();
+    } else {
+        checkbox.checked = !isDone;
+    }
+};
 
 async function refreshTasks() {
     const taskList = document.getElementById('task-list');
@@ -467,7 +497,6 @@ async function refreshTasks() {
     const tasks = await fetchTasks();
     taskList.innerHTML = '';
 
-    // 1. Оставляем только активные задачи
     const activeTasks = tasks.filter(t => !t.completed || t.completed === 0);
 
     if (activeTasks.length === 0) {
@@ -475,96 +504,180 @@ async function refreshTasks() {
         return;
     }
 
-    // 2. Сортируем
     activeTasks.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
-activeTasks.forEach(task => {
-    const div = document.createElement('div');
-    div.className = 'task-item';
+    activeTasks.forEach(task => {
+        const div = document.createElement('div');
+        div.className = 'task-item';
 
-    const shortTime = task.time ? task.time.substring(0, 5) : "00:00";
-    let formattedDate = "";
-    if (task.date) {
-        const dateParts = task.date.split('-');
-        if (dateParts.length === 3) {
-            formattedDate = `${dateParts[2]}.${dateParts[1]}`;
-        }
-    }
+        const cat = categories.find(c => c.id === task.category_id) || categories[0];
+        div.style.borderLeft = `4px solid ${cat.color}`;
 
-div.innerHTML = 
-    '<input type="checkbox" class="task-check" ' + 
-    (task.completed ? 'checked' : '') + 
-    ' onclick="updateTaskUI(\'' + task.id + '\', this)">' +
-    '<div class="task-info">' +
-        '<div class="task-text">' + task.text + '</div>' +
-        '<div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4);">' +
-            shortTime + ' | ' + formattedDate +
-        '</div>' +
-    '</div>';
-    taskList.appendChild(div);
-});
-}
-init();
-// --- ТВОЙ НОВЫЙ ВТОРОЙ ПУНКТ (ГЛАВНЫЙ ДИСПЕТЧЕР ГАЛОЧЕК) ---
-window.updateTaskUI = async (taskId, checkbox) => {
-    const isDone = checkbox.checked;
-    // Находим родительский контейнер задачи (хоть в списке, хоть в сетке)
-    const taskItem = checkbox.closest('.task-item') || checkbox.closest('.task-item-mini');
-
-    if (isDone) {
-        // 1. Сразу зачеркиваем визуально для скорости
-        if (taskItem) taskItem.classList.add('completed');
-
-        // 2. Отправляем запрос на сервер
-        const success = await toggleTaskStatus(taskId, true);
-
-        if (success) {
-            // 3. Если всё ок, обновляем боковой список (задача исчезнет из-за фильтра)
-            await refreshTasks();
-
-            // 4. Обновляем точки на календаре, но только если окно деталей закрыто
-            const detailView = document.getElementById('day-detail-view');
-            if (detailView && detailView.classList.contains('hidden')) {
-                await renderMonth();
+        const shortTime = task.time ? task.time.substring(0, 5) : "00:00";
+        let formattedDate = "";
+        if (task.date) {
+            const parts = task.date.split(' ')[0].split('-');
+            if (parts.length === 3) {
+                formattedDate = `${parts[2]}.${parts[1]}`;
             }
-        } else {
-            // Если сервер выдал ошибку (как на твоем скрине) — возвращаем галочку назад
-            checkbox.checked = false;
-            if (taskItem) taskItem.classList.remove('completed');
         }
+
+        const isImportant = (task.is_important == 1);
+
+        div.innerHTML = `
+            <input type="checkbox" class="task-check"
+                ${task.completed ? 'checked' : ''}
+                onchange="updateTaskUI('${task.id}', this)">
+            <div class="task-info">
+                <div class="task-text" style="color: white;">
+                    ${isImportant ? '<span style="color: #ff453a; margin-right: 5px;">🚩</span>' : ''}
+                    ${task.text}
+                </div>
+                <div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4);">
+                    ${shortTime} | ${formattedDate}
+                </div>
+            </div>
+        `;
+
+        taskList.appendChild(div);
+    });
+}
+
+function syncCategories() {
+    localStorage.setItem('user-categories', JSON.stringify(categories));
+    renderCategorySelector();
+    if (!document.getElementById('category-manager-popup').classList.contains('hidden')) {
+        renderCategoryManagerList();
+    }
+}
+
+function syncCategoriesUI() {
+    localStorage.setItem('user-categories', JSON.stringify(categories));
+    renderCategorySelector();
+    const popup = document.getElementById('category-manager-popup');
+    if (popup && !popup.classList.contains('hidden')) {
+        renderCategoryManagerList();
+    }
+}
+
+async function addNewCategory() {
+    const nameInput = document.getElementById('new-cat-name');
+    const colorInput = document.getElementById('new-cat-color');
+    const name = nameInput.value.trim();
+
+    if (!name) return;
+
+    const newCat = {
+        user_id: USER_ID,
+        name: name,
+        color: colorInput.value
+    };
+
+    try {
+        const res = await fetch(`${API_URL}/add_category`, {
+            method: 'POST',
+            headers: COMMON_HEADERS,
+            body: JSON.stringify(newCat)
+        });
+
+        if (res.ok) {
+            const savedCat = await res.json();
+            categories.push(savedCat);
+            nameInput.value = '';
+            syncCategoriesUI();
+        }
+    } catch (e) {
+        console.error("Не удалось сохранить категорию на сервере", e);
+    }
+}
+
+window.editCat = function(id) {
+    const cat = categories.find(c => c.id === id);
+    if (!cat) return;
+    const newName = prompt("Изменить название:", cat.name);
+    if (newName && newName.trim() !== "") {
+        cat.name = newName.trim();
+        localStorage.setItem('user-categories', JSON.stringify(categories));
+        renderCategorySelector();
     }
 };
 
-// Слушатель для автосохранения при выходе из ячейки часа
-document.addEventListener('blur', async (e) => {
-    if (e.target.classList.contains('hour-content')) {
-        const newText = e.target.innerText.trim();
-        const hour = e.target.getAttribute('data-hour');
-
-        if (!newText || !hour) return;
-
-        const y = currentViewDate.getFullYear();
-        const m = String(currentViewDate.getMonth() + 1).padStart(2, '0');
-        const d = String(selectedFullDate.getDate()).padStart(2, '0');
-        const dateStr = `${y}-${m}-${d}`;
-
-        try {
-            const response = await fetch(`${API_URL}/add_task`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: USER_ID,
-                    text: newText,
-                    date: dateStr,
-                    time: `${hour.padStart(2, '0')}:00`
-                })
-            });
-            if (response.ok) {
-                await renderMonth(); // чтобы появилась точка на календаре
-                await refreshTasks(); // чтобы обновился список сбоку
-            }
-        } catch (err) {
-            console.error("Ошибка сохранения из сетки:", err);
-        }
+function toggleCategoryManager() {
+    const popup = document.getElementById('category-manager-popup');
+    popup.classList.toggle('hidden');
+    if (!popup.classList.contains('hidden')) {
+        renderCategoryManagerList();
     }
-}, true);
+}
+
+async function fetchCategories() {
+    try {
+        const res = await fetch(`${API_URL}/get_categories?user_id=${USER_ID}`, {
+            method: 'GET',
+            headers: COMMON_HEADERS
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+                categories = data;
+                localStorage.setItem('user-categories', JSON.stringify(categories));
+            }
+        }
+    } catch (e) {
+        console.error("Ошибка загрузки категорий, использую локальные", e);
+    }
+}
+
+function renderCategoryManagerList() {
+    const listContainer = document.getElementById('categories-list');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = categories.map(cat => `
+        <div class="category-manage-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: ${cat.color};"></div>
+                <span style="font-size: 1rem;">${cat.name}</span>
+            </div>
+            <div style="display: flex; gap: 4px;">
+                <button onclick="editCategoryFull('${cat.id}')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
+                <button onclick="deleteCategoryFull('${cat.id}')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.deleteCategoryFull = async function(id) {
+    if (!confirm("Удалить категорию?")) return;
+
+    try {
+        const res = await fetch(`${API_URL}/delete_category`, {
+            method: 'POST',
+            headers: COMMON_HEADERS,
+            body: JSON.stringify({ user_id: USER_ID, category_id: id })
+        });
+
+        if (res.ok) {
+            await fetchCategories();
+            renderCategorySelector();
+            renderCategoryManagerList();
+        }
+    } catch (e) {
+        console.error("Ошибка удаления", e);
+    }
+};
+
+window.editCategoryFull = async function(id) {
+    const cat = categories.find(c => c.id == id);
+    const newName = prompt("Новое название категории:", cat.name);
+
+    if (newName && newName.trim() !== "") {
+        cat.name = newName.trim();
+        syncCategoriesUI();
+    }
+};
+
+init();
