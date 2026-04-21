@@ -27,6 +27,7 @@
     <div class="nav">
         <button onclick="changeMonth(-1)">&lt;</button>
         <button onclick="goToday()">Сегодня</button>
+        <button class="icon-btn" onclick="toggleCategoryManager()">⚙️</button>
         <button onclick="changeMonth(1)">&gt;</button>
     </div>
 </header>
@@ -63,13 +64,31 @@
     <div class="sidebar-content">
         <div class="sidebar-header">
             <h2 id="side-date">Задачи</h2>
-            <div class="settings-container">
+            <div class="settings-container" style="display: flex; gap: 8px;">
+                <button class="icon-btn setting-trigger" onclick="toggleCategoryManager()" title="Категории">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                </button>
+
                 <button class="icon-btn setting-trigger" onclick="toggleSettings()" title="Настройки">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                 </button>
+
+                <div id="category-manager-popup" class="settings-popup hidden">
+                    <div class="settings-header">Категории</div>
+                    <div id="categories-list" class="category-manager"></div>
+                    <div class="divider"></div>
+                    <div class="add-category-form" style="display: flex; gap: 5px;">
+                        <input type="text" id="new-cat-name" placeholder="Название" style="flex: 1; font-size: 0.8rem;">
+                        <input type="color" id="new-cat-color" value="#ff453a" style="width: 30px; height: 24px; border: none; background: none; cursor: pointer;">
+                        <button onclick="addNewCategory()" class="nav-btn" style="padding: 2px 8px;">+</button>
+                    </div>
+                </div>
 
                 <div id="settings-menu" class="settings-popup hidden">
                     <div class="settings-header">Настройки</div>
@@ -100,14 +119,18 @@
                 <button class="nav-arrow" onclick="changeSelectedDay(1)">&gt;</button>
             </div>
 
-            <div class="add-task-box">
-    <input type="text" id="new-task-input" name="task_text" placeholder="Название ">
-    <button id="add-task-btn" type="button">+</button>
-            </div>
+            <div id="category-selector" class="category-selector">
+                </div>
 
+            <div class="add-task-box">
+                <input type="text" id="new-task-input" name="task_text" placeholder="Название задачи...">
+                <button id="add-task-btn" type="button">+</button>
+            </div>
             <div class="time-picker-row">
-                <input type="time" id="task-time-picker" value="09:00">
-                <span class="hint">Или просто напиши время в строке</span>
+    <input type="time" id="task-time-picker" value="09:00">
+    <label style="font-size: 0.8rem; color: var(--text-dim); display: flex; align-items: center; gap: 5px; cursor: pointer;">
+        <input type="checkbox" id="is-important-checkbox"> Флажок
+    </label>
             </div>
         </div>
 
