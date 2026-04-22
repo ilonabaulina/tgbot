@@ -2,6 +2,7 @@
 :root {
     --bg: #000000;
     --card: #1c1c1e;
+    --app-font-size: 16px;
     --accent: #ff453a;
     --text: #ffffff;
     --text-dim: #8e8e93;
@@ -21,8 +22,18 @@ html, body {
     background-color: #000 !important;
     color: var(--text);
     height: 100%;
+    font-size: var(--app-font-size) !important;
+    transition: font-size 0.2s ease;
     width: 100%;
     overflow: hidden; /* Запрет скролла для всего окна */
+}
+body.compact-mode .task-item {
+    padding: 6px 10px !important;
+    margin-bottom: 4px !important;
+}
+
+body.compact-mode .task-title {
+    font-size: 0.85em !important;
 }
 
 /* --- 2. ГЛАВНЫЙ КОНТЕЙНЕР --- */
@@ -108,6 +119,27 @@ html, body {
 }
 .icon-btn.settings-btn:hover {
     opacity: 1;
+}
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+/* Светлая тема (базовый пример) */
+body.light-theme {
+    background-color: #f0f0f2;
+    color: #1c1c1e;
+}
+body.light-theme .app-container, 
+body.light-theme .sidebar {
+    background-color: #ffffff;
+    color: #1c1c1e;
+}
+body.light-theme .task-item {
+    background: rgba(0, 0, 0, 0.05);
 }
 .task-item-mini {
     margin-bottom: 6px !important;
