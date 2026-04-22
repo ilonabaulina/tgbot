@@ -75,6 +75,17 @@ html, body {
 
 .date-titles span:last-child { color: var(--accent); }
 
+.icon-btn.settings-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--card);
+    padding: 10px;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 100;
+    opacity: 0.6;
+}
 .icon-btn {
     background: none;
     border: none;
@@ -95,7 +106,14 @@ html, body {
     stroke: currentColor;
     stroke-width: 2;
 }
-
+.icon-btn.settings-btn:hover {
+    opacity: 1;
+}
+.task-item-mini {
+    margin-bottom: 6px !important;
+    padding: 10px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
 .nav button, .nav-btn {
     background: var(--card);
     border: none;
