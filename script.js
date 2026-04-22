@@ -76,33 +76,21 @@ function selectCategory(id) {
     renderCategorySelector();
     
     const cat = getCategoryById(id);
-// В setupTasks() - ПОЛНОСТЬЮ ЗАМЕНИТЕ блок с флажком на это:
-
-const flagBtn = document.getElementById('flag-icon-trigger');
-if (flagBtn) {
-    flagBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Циклическое переключение категорий
-        const currentIndex = categories.findIndex(c => String(c.id) === String(selectedCategoryId));
-        const nextIndex = (currentIndex + 1) % categories.length;
-        const nextCategory = categories[nextIndex];
-        
-        // Меняем выбранную категорию
-        selectedCategoryId = nextCategory.id;
-        
-        // Обновляем UI
-        renderCategorySelector();
-        
-        // Визуальный отклик
-        flagBtn.style.transform = 'scale(0.9)';
-        setTimeout(() => { flagBtn.style.transform = 'scale(1)'; }, 150);
-        
-        console.log(`🔄 Категория: ${nextCategory.name}`);
-    };
+    const flagBtn = document.getElementById('flag-icon-trigger');
+    const importantCheckbox = document.getElementById('is-important-checkbox');
+    
+    if (flagBtn && cat) {
+        if (importantCheckbox && importantCheckbox.checked) {
+            flagBtn.style.color = cat.color;
+            flagBtn.style.opacity = "1";
+            flagBtn.style.filter = `drop-shadow(0 0 5px ${cat.color})`;
+        } else {
+            flagBtn.style.color = cat.color;
+            flagBtn.style.opacity = "0.6";
+            flagBtn.style.filter = "none";
+        }
+    }
 }
-
 async function fetchTasks() {
     try {
         const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
@@ -849,17 +837,6 @@ function renderDayView(selectedDate) {
         });
     }
 }
-// Функция смены размера
-function changeFontSize(size) {
-    // 1. Применяем к документу
-    document.documentElement.style.setProperty('--app-font-size', size);
-    
-    // 2. Сохраняем в память
-    localStorage.setItem('user-font-size', size);
-    
-    // Визуальный отклик (опционально: можно подсвечивать активную кнопку)
-    console.log(`Размер шрифта изменен на: ${size}`);
-}
 
 // Добавь это в свою функцию init(), чтобы настройки применялись при старте
 function applySavedSettings() {
@@ -868,32 +845,6 @@ function applySavedSettings() {
     
     // Вызываем уже имеющуюся у тебя функцию акцента
     applySavedAccent(); 
-}
-async function clearDayTasks() {
-    const dateStr = selectedFullDate.toISOString().split('T')[0];
-    
-    // Всплывающее окно подтверждения
-    const confirmDelete = confirm(`Вы уверены, что хотите удалить ВСЕ задачи на ${dateStr}?`);
-    
-    if (confirmDelete) {
-        try {
-            const response = await fetch(`${API_URL}/delete_day_tasks`, {
-                method: 'POST',
-                headers: COMMON_HEADERS,
-                body: JSON.stringify({ 
-                    user_id: USER_ID, 
-                    date: dateStr 
-                })
-            });
-
-            if (response.ok) {
-                await renderMonth();
-                await refreshTasks();
-            }
-        } catch (e) {
-            console.error("Ошибка при удалении задач за день:", e);
-        }
-    }
 }
     // Добавьте эту функцию в script.js
 async function clearAllData() {
