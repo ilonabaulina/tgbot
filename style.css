@@ -7,6 +7,7 @@
     --text: #ffffff;
     --text-dim: #8e8e93;
     --border: rgba(255, 255, 255, 0.1);
+    --current-cat-color: var(--accent); /* ДЕФОЛТ ДЛЯ БЕЗОПАСНОСТИ */
 }
 
 * {
@@ -27,6 +28,7 @@ html, body {
     width: 100%;
     overflow: hidden; /* Запрет скролла для всего окна */
 }
+
 body.compact-mode .task-item {
     padding: 6px 10px !important;
     margin-bottom: 4px !important;
@@ -207,6 +209,11 @@ body.light-theme .task-item {
     position: relative;
     transition: transform 0.1s;
     font-size: 0.95rem;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 6px; /* Оставляем место внизу под полоски */
 }
 
 .day:active { transform: scale(0.9); }
@@ -222,6 +229,26 @@ body.light-theme .task-item {
     height: 6px;
     background-color: var(--accent);
     border-radius: 50%;
+}
+
+/* Контейнер для полосок */
+.task-lines-container {
+    position: absolute;
+    bottom: 3px; /* Расстояние от нижнего края */
+    left: 15%;   /* Отступ слева, чтобы полоска была короче */
+    right: 15%;  /* Отступ справа */
+    display: flex;
+    flex-direction: column;
+    gap: 1.5px;  /* Расстояние между полосками */
+    pointer-events: none;
+}
+
+/* Сама полосочка */
+.day-line {
+    width: 100%;
+    height: 4px; /* Толщина полоски */
+    border-radius: 2px;
+    opacity: 0.8;
 }
 
 /* --- 6. САЙДБАР (ЗАДАЧИ) --- */
@@ -258,6 +285,12 @@ body.light-theme .task-item {
     align-items: center;
     margin-bottom: 20px;
     flex-shrink: 0;
+}
+
+/* Убираем шестеренку из сайдбара, но оставляем её в главном окне (если нужно) */
+.sidebar-header .icon-btn, 
+.sidebar-header .settings-btn {
+    display: none !important;
 }
 
 #side-date { font-size: 1.6rem; font-weight: 800; }
@@ -308,6 +341,15 @@ body.light-theme .task-item {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
     border-color: var(--cat-color);
+}
+
+/* Свечение активной категории (ДУБЛИРУЮЩИЙ СТИЛЬ, НО БЕЗ КОНФЛИКТА) */
+.cat-chip.active {
+    background: var(--cat-color) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 0 15px var(--cat-color);
+    opacity: 1;
 }
 
 .add-task-box {
@@ -407,6 +449,8 @@ input[type="time"] {
     gap: 12px;
     min-height: 0;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: 20px;
+    mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
 }
 
 /* Кастомизация скроллбара */
@@ -432,34 +476,6 @@ input[type="time"] {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-}
-/* Контейнер для полосок */
-.task-lines-container {
-    position: absolute;
-    bottom: 3px; /* Расстояние от нижнего края */
-    left: 15%;   /* Отступ слева, чтобы полоска была короче */
-    right: 15%;  /* Отступ справа */
-    display: flex;
-    flex-direction: column;
-    gap: 1.5px;  /* Расстояние между полосками */
-    pointer-events: none;
-}
-
-/* Сама полосочка */
-.day-line {
-    width: 100%;
-    height: 4px; /* Толщина полоски */
-    border-radius: 2px;
-    opacity: 0.8;
-}
-
-/* Чтобы число не перекрывалось полосками, если их много */
-.day {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-bottom: 6px; /* Оставляем место внизу под полоски */
 }
 
 .task-item {
@@ -498,6 +514,14 @@ input[type="time"] {
     font-size: 14px;
 }
 
+/* Стиль для времени задачи в списке */
+.task-time-text {
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-top: 2px;
+    opacity: 0.9;
+}
+
 /* --- 9. ПОПАПЫ И НАСТРОЙКИ --- */
 .settings-popup {
     position: absolute;
@@ -527,31 +551,10 @@ input[type="time"] {
     border-radius: 10px;
     cursor: pointer;
 }
-/* Свечение активной категории */
-.cat-chip.active {
-    background: var(--cat-color) !important;
-    color: #fff !important;
-    border-color: transparent !important;
-    box-shadow: 0 0 15px var(--cat-color); /* Эффект свечения */
-    opacity: 1;
-}
 
-/* Фикс списка задач: чтобы он не уходил вниз и листался */
-#task-list {
-    flex: 1;
-    overflow-y: auto !important;
-    padding-bottom: 20px;
-    /* Убираем "мертвую зону" снизу */
-    mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
-}
-/* Убираем шестеренку из сайдбара, но оставляем её в главном окне (если нужно) */
-.sidebar-header .icon-btn, 
-.sidebar-header .settings-btn {
-    display: none !important;
-}
-
+/* Флажок иконки (должен идти ПОСЛЕ определения переменной) */
 #flag-icon-trigger {
-    transition: all 0.3s ease; /* Чтобы цвет менялся плавно, а не дергался */
+    transition: all 0.3s ease;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -560,26 +563,8 @@ input[type="time"] {
 
 /* Когда флажок активен (выбран), он использует нашу переменную */
 #flag-icon-trigger.active {
-    color: var(--current-cat-color) !important;
-    filter: drop-shadow(0 0 10px var(--current-cat-color));
-}
-
-/* Стиль для времени задачи в списке */
-.task-time-text {
-    font-size: 0.75rem;
-    font-weight: 700;
-    margin-top: 2px;
-    opacity: 0.9;
-}
-/* Фикс для мобилки, чтобы шапка не ломалась */
-@media (max-width: 768px) {
-    .header {
-        flex-wrap: nowrap; 
-        gap: 10px;
-    }
-    .date-titles {
-        font-size: 1.2rem; /* Чуть меньше текст на телефоне */
-    }
+    color: var(--current-cat-color, var(--accent)) !important; /* fallback */
+    filter: drop-shadow(0 0 10px var(--current-cat-color, var(--accent)));
 }
 
 /* --- 10. МОБИЛЬНАЯ АДАПТАЦИЯ (ЖЕСТКАЯ) --- */
@@ -618,11 +603,17 @@ input[type="time"] {
         min-height: 44px;
         justify-content: center;
     }
+    
+    /* Фикс для мобилки, чтобы шапка не ломалась */
+    .header {
+        flex-wrap: nowrap; 
+        gap: 10px;
+    }
+    .date-titles {
+        font-size: 1.2rem;
+    }
 }
 
 /* Утилиты */
 .text-dim { color: var(--text-dim); }
 .accent-text { color: var(--accent); }
-
-/* Конец файла (300+ строк не наберется физически без мусора,
-   но здесь весь функционал в самом чистом виде) */
