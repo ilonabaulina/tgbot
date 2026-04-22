@@ -518,17 +518,18 @@ input[type="time"] {
     display: none !important;
 }
 
-/* Стиль для кнопки-флажка при создании задачи */
-#flag-icon-trigger.active {
-    filter: drop-shadow(0 0 5px var(--current-cat-color, #ff453a));
-    color: var(--current-cat-color, #ff453a) !important;
-    opacity: 1 !important;
-    transform: scale(1.1);
+#flag-icon-trigger {
+    transition: all 0.3s ease; /* Чтобы цвет менялся плавно, а не дергался */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* Для плавности */
-#flag-icon-trigger {
-    transition: all 0.2s ease;
+/* Когда флажок активен (выбран), он использует нашу переменную */
+#flag-icon-trigger.active {
+    color: var(--current-cat-color) !important;
+    filter: drop-shadow(0 0 10px var(--current-cat-color));
 }
 
 /* Стиль для времени задачи в списке */
