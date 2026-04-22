@@ -124,39 +124,47 @@ async function renderMonth() {
 
         dayNode.innerHTML = `<span>${d}</span>`;
 
-        // ЛОГИКА ПОЛОСОЧЕК
+        // ЛОГИКА ПЛАШЕК В РЯД (Исправлено)
         const dayTasks = allTasks.filter(t => t.date && t.date.startsWith(currentDayStr) && t.completed == 0);
 
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
-            badgeContainer.className = 'task-lines-container';
+            // Стилизуем контейнер для плашек прямо здесь для надежности
+            badgeContainer.style.cssText = `
+                position: absolute; 
+                bottom: 4px; 
+                left: 0; 
+                right: 0; 
+                display: flex; 
+                justify-content: center; 
+                gap: 2px; 
+                padding: 0 4px;
+                pointer-events: none;
+            `;
 
             const uniqueColors = [...new Set(dayTasks.map(t => {
-                const cat = categories.find(c => c.id === t.category_id);
+                const cat = getCategoryById(t.category_id);
                 return cat ? cat.color : '#ff453a';
             }))];
 
             uniqueColors.forEach(color => {
                 const line = document.createElement('div');
-                line.className = 'day-line';
-                line.style.background = color;
+                line.style.cssText = `
+                    width: 10px; 
+                    height: 3px; 
+                    background: ${color}; 
+                    border-radius: 2px;
+                `;
                 badgeContainer.appendChild(line);
             });
             dayNode.appendChild(badgeContainer);
         }
 
         dayNode.onclick = async () => {
-            console.log("Клик по дню:", d);
             selectedFullDate = new Date(y, m, d);
             updateDateDisplay();
             await renderMonth();
-
-            if (typeof openDayDetail === 'function') {
-                openDayDetail(d);
-            } else {
-                console.error("Функция openDayDetail не найдена!");
-            }
-
+            if (typeof openDayDetail === 'function') openDayDetail(d);
             await refreshTasks();
         };
 
@@ -169,36 +177,38 @@ function setupTasks() {
     const addBtn = document.getElementById('add-task-btn');
     const importantCheckbox = document.getElementById('is-important-checkbox');
     const timePicker = document.getElementById('task-time-picker');
+    // Ищем кнопку флажка (🚩) по тегу svg или иконке внутри
+    const flagBtn = document.querySelector('.icon-btn:has(svg), #flag-icon-trigger'); 
 
     if (!taskInput || !addBtn) return;
 
-    const performSubmit = async (e) => {
-        if (e) {
+    // Логика визуального переключения флажка
+    if (flagBtn && importantCheckbox) {
+        flagBtn.onclick = (e) => {
             e.preventDefault();
-            e.stopPropagation();
-        }
+            importantCheckbox.checked = !importantCheckbox.checked;
+            // Красим в красный если включено, в белый если выключено
+            flagBtn.style.color = importantCheckbox.checked ? '#ff453a' : 'white';
+            flagBtn.style.filter = importantCheckbox.checked ? 'drop-shadow(0 0 5px #ff453a)' : 'none';
+        };
+    }
+
+    const performSubmit = async (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
 
         let text = taskInput.value.trim();
         if (!text) return;
 
-        // Определяем дату и важность
         const dateStr = selectedFullDate.toISOString().split('T')[0];
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
-
-        // --- ЛОГИКА ВРЕМЕНИ (11:15) ---
-        // По умолчанию берем то, что выбрано в селекторе времени
         let taskTime = timePicker ? timePicker.value : "09:00";
 
-        // Проверяем, не написала ли ты время прямо в тексте задачи
+        // Парсинг времени из текста
         const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
         if (timeMatch) {
-            const h = timeMatch[1].padStart(2, '0');
-            const m = timeMatch[2].padStart(2, '0');
-            taskTime = `${h}:${m}`;
-            // Убираем время из текста названия, чтобы не дублировалось
+            taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
             text = text.replace(timeMatch[0], "").trim();
         }
-        // ------------------------------
 
         try {
             const response = await fetch(`${API_URL}/add_task`, {
@@ -208,7 +218,7 @@ function setupTasks() {
                     user_id: USER_ID,
                     text: text,
                     date: dateStr,
-                    time: taskTime, // Отправляем полное время HH:MM
+                    time: taskTime,
                     category_id: selectedCategoryId,
                     is_important: isImportant
                 })
@@ -216,19 +226,23 @@ function setupTasks() {
 
             if (response.ok) {
                 taskInput.value = '';
-                if (importantCheckbox) importantCheckbox.checked = false;
+                if (importantCheckbox) {
+                    importantCheckbox.checked = false;
+                    if (flagBtn) {
+                        flagBtn.style.color = 'white';
+                        flagBtn.style.filter = 'none';
+                    }
+                }
                 await renderMonth();
-                await refreshTasks(); // Эта функция обновит глобальный массив tasks
+                await refreshTasks();
             }
         } catch (err) {
-            console.error("Ошибка при отправке задачи:", err);
+            console.error("Ошибка при отправке:", err);
         }
     };
 
     addBtn.addEventListener('click', performSubmit);
-    taskInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSubmit(e);
-    });
+    taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSubmit(e); });
 }
 
 function showYearPicker() {
@@ -519,41 +533,46 @@ async function refreshTasks() {
         return;
     }
 
+    // Сортировка по времени
     activeTasks.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
     activeTasks.forEach(task => {
         const div = document.createElement('div');
         div.className = 'task-item';
 
-        const cat = categories.find(c => c.id === task.category_id) || categories[0];
-        div.style.borderLeft = `4px solid ${cat.color}`;
+        const cat = getCategoryById(task.category_id);
+        // Применяем цвет категории к левой границе и паддинги
+        div.style.cssText = `
+            border-left: 4px solid ${cat.color};
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+        `;
 
-        const shortTime = task.time ? task.time.substring(0, 5) : "00:00";
-        let formattedDate = "";
-        if (task.date) {
-            const parts = task.date.split(' ')[0].split('-');
-            if (parts.length === 3) {
-                formattedDate = `${parts[2]}.${parts[1]}`;
-            }
-        }
-
+        const shortTime = task.time ? task.time.substring(0, 5) : "09:00";
         const isImportant = (task.is_important == 1);
 
         div.innerHTML = `
             <input type="checkbox" class="task-check"
                 ${task.completed ? 'checked' : ''}
-                onchange="updateTaskUI('${task.id}', this)">
-            <div class="task-info">
-                <div class="task-text" style="color: white;">
-                    ${isImportant ? '<span style="color: #ff453a; margin-right: 5px;">🚩</span>' : ''}
-                    ${task.text}
+                onchange="updateTaskUI('${task.id}', this)"
+                style="width: 20px; height: 20px; flex-shrink: 0;">
+            <div class="task-info" style="flex: 1; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <span class="task-text" style="color: white; font-weight: 500; font-size: 1rem;">
+                        ${task.text}
+                    </span>
+                    ${isImportant ? '<span style="color: #ff453a; font-size: 1rem; margin-left: 8px;">🚩</span>' : ''}
                 </div>
-                <div class="task-time" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4);">
-                    ${shortTime} | ${formattedDate}
+                <div class="task-time-row" style="font-size: 0.8rem; color: ${cat.color}; font-weight: 600; margin-top: 4px; opacity: 0.9;">
+                    ${shortTime}
                 </div>
             </div>
         `;
-
         taskList.appendChild(div);
     });
 }
