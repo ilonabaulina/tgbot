@@ -35,25 +35,30 @@ async function init() {
     renderCategorySelector();
 }
 
-function renderCategorySelector() {
-    const container = document.getElementById('category-selector');
-    if (!container) return;
-
-    container.innerHTML = categories.map(cat => {
-        const isActive = String(selectedCategoryId) === String(cat.id);
-        // Если выбрана — добавляем тень в цвет категории
-        const style = isActive 
-            ? `background: ${cat.color}; color: white; box-shadow: 0 0 10px ${cat.color};` 
-            : `border: 1px solid ${cat.color}; color: ${cat.color};`;
-
-        return `
-            <div class="cat-chip ${isActive ? 'active' : ''}"
-                 style="${style}"
-                 onclick="selectCategory('${cat.id}')">
-                ${cat.name}
-            </div>
-        `;
-    }).join('');
+function selectCategory(id) {
+    selectedCategoryId = id;
+    renderCategorySelector();
+    
+    const cat = getCategoryById(id);
+    
+    // 1. ПЕРЕДАЕМ ЦВЕТ В CSS: теперь браузер знает, какой цвет сейчас главный
+    document.documentElement.style.setProperty('--current-cat-color', cat.color);
+    
+    const flagBtn = document.getElementById('flag-icon-trigger');
+    const importantCheckbox = document.getElementById('is-important-checkbox');
+    
+    // 2. ОБНОВЛЯЕМ ВИД ФЛАЖКА СРАЗУ:
+    if (flagBtn && importantCheckbox) {
+        if (importantCheckbox.checked) {
+            // Если задача важная, красим флажок в цвет категории и добавляем свечение
+            flagBtn.style.color = cat.color;
+            flagBtn.style.filter = `drop-shadow(0 0 8px ${cat.color})`;
+        } else {
+            // Если не важная — возвращаем обычный вид
+            flagBtn.style.color = 'white';
+            flagBtn.style.filter = 'none';
+        }
+    }
 }
 
 window.editCategoryName = function(id) {
@@ -73,9 +78,17 @@ window.editCategoryName = function(id) {
 function selectCategory(id) {
     selectedCategoryId = id;
     renderCategorySelector();
-    // Также обновляем цвет кнопки времени/флажка в поле ввода для наглядности
-    const timeBtn = document.querySelector('.time-display'); 
-    if(timeBtn) timeBtn.style.color = getCategoryById(id).color;
+    
+    const cat = getCategoryById(id);
+    // Передаем цвет категории в CSS переменную, чтобы флажок знал, каким светиться
+    document.documentElement.style.setProperty('--current-cat-color', cat.color);
+    
+    // Если флажок уже был выбран (важная задача), обновляем его цвет мгновенно
+    const flagBtn = document.getElementById('flag-icon-trigger');
+    const importantCheckbox = document.getElementById('is-important-checkbox');
+    if (flagBtn && importantCheckbox && importantCheckbox.checked) {
+        flagBtn.classList.add('active');
+    }
 }
 
 async function fetchTasks() {
@@ -193,15 +206,26 @@ function setupTasks() {
     if (!taskInput || !addBtn) return;
 
     // Логика визуального переключения флажка
-    if (flagBtn && importantCheckbox) {
-        flagBtn.onclick = (e) => {
-            e.preventDefault();
-            importantCheckbox.checked = !importantCheckbox.checked;
-            // Красим в красный если включено, в белый если выключено
-            flagBtn.style.color = importantCheckbox.checked ? '#ff453a' : 'white';
-            flagBtn.style.filter = importantCheckbox.checked ? 'drop-shadow(0 0 5px #ff453a)' : 'none';
-        };
+// Внутри setupTasks замени логику флажка:
+if (flagBtn && importantCheckbox) {
+    // Принудительно ставим ID, если его нет в HTML
+    flagBtn.id = 'flag-icon-trigger'; 
+
+flagBtn.onclick = (e) => {
+    e.preventDefault();
+    importantCheckbox.checked = !importantCheckbox.checked;
+    
+    const cat = getCategoryById(selectedCategoryId);
+    if (importantCheckbox.checked) {
+        flagBtn.classList.add('active');
+        flagBtn.style.color = cat.color;
+        flagBtn.style.filter = `drop-shadow(0 0 8px ${cat.color})`;
+    } else {
+        flagBtn.classList.remove('active');
+        flagBtn.style.color = 'white';
+        flagBtn.style.filter = 'none';
     }
+};
 
     const performSubmit = async (e) => {
         if (e) { e.preventDefault(); e.stopPropagation(); }
