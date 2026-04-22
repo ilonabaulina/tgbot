@@ -566,7 +566,43 @@ input[type="time"] {
     color: var(--current-cat-color, var(--accent)) !important; /* fallback */
     filter: drop-shadow(0 0 10px var(--current-cat-color, var(--accent)));
 }
+/* --- ИСПРАВЛЕНИЕ ПРОКРУТКИ СПИСКА ЗАДАЧ --- */
+.sidebar-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    padding: 20px;
+}
 
+.add-task-container {
+    flex-shrink: 0;
+}
+
+#task-list {
+    flex: 1;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    min-height: 0;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Красивый скроллбар */
+#task-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+#task-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#task-list::-webkit-scrollbar-thumb {
+    background: var(--accent, #ff453a);
+    border-radius: 10px;
+}
 /* --- 10. МОБИЛЬНАЯ АДАПТАЦИЯ (ЖЕСТКАЯ) --- */
 @media (max-width: 768px) {
     .app-container {
