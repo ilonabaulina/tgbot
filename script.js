@@ -39,14 +39,21 @@ function renderCategorySelector() {
     const container = document.getElementById('category-selector');
     if (!container) return;
 
-    container.innerHTML = categories.map(cat => `
-        <div class="cat-chip ${selectedCategoryId === cat.id ? 'active' : ''}"
-             style="--cat-color: ${cat.color}"
-             onclick="selectCategory('${cat.id}')"
-             ondblclick="editCategoryName('${cat.id}')">
-            ${cat.name}
-        </div>
-    `).join('');
+    container.innerHTML = categories.map(cat => {
+        const isActive = String(selectedCategoryId) === String(cat.id);
+        // Если выбрана — добавляем тень в цвет категории
+        const style = isActive 
+            ? `background: ${cat.color}; color: white; box-shadow: 0 0 10px ${cat.color};` 
+            : `border: 1px solid ${cat.color}; color: ${cat.color};`;
+
+        return `
+            <div class="cat-chip ${isActive ? 'active' : ''}"
+                 style="${style}"
+                 onclick="selectCategory('${cat.id}')">
+                ${cat.name}
+            </div>
+        `;
+    }).join('');
 }
 
 window.editCategoryName = function(id) {
@@ -66,6 +73,9 @@ window.editCategoryName = function(id) {
 function selectCategory(id) {
     selectedCategoryId = id;
     renderCategorySelector();
+    // Также обновляем цвет кнопки времени/флажка в поле ввода для наглядности
+    const timeBtn = document.querySelector('.time-display'); 
+    if(timeBtn) timeBtn.style.color = getCategoryById(id).color;
 }
 
 async function fetchTasks() {
@@ -203,12 +213,12 @@ function setupTasks() {
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
         let taskTime = timePicker ? timePicker.value : "09:00";
 
-        // Парсинг времени из текста
-        const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
-        if (timeMatch) {
-            taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
-            text = text.replace(timeMatch[0], "").trim();
-        }
+const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
+if (timeMatch) {
+    taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
+    // Оставляем текст задачи чистым, без цифр времени
+    text = text.replace(timeMatch[0], "").trim();
+}
 
         try {
             const response = await fetch(`${API_URL}/add_task`, {
@@ -523,60 +533,52 @@ async function refreshTasks() {
     const taskList = document.getElementById('task-list');
     if (!taskList) return;
 
-    const tasks = await fetchTasks();
+    const allTasks = await fetchTasks();
     taskList.innerHTML = '';
 
-    const activeTasks = tasks.filter(t => !t.completed || t.completed === 0);
+    const currentDayStr = selectedFullDate.toISOString().split('T')[0];
+    const dayTasks = allTasks.filter(t => t.date && t.date.startsWith(currentDayStr));
 
-    if (activeTasks.length === 0) {
-        taskList.innerHTML = '<div class="hint">Активных задач нет</div>';
+    if (dayTasks.length === 0) {
+        taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">Задач на этот день нет</div>';
         return;
     }
 
-    // Сортировка по времени
-    activeTasks.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    dayTasks.sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
 
-    activeTasks.forEach(task => {
-        const div = document.createElement('div');
-        div.className = 'task-item';
-
+    dayTasks.forEach(task => {
         const cat = getCategoryById(task.category_id);
-        // Применяем цвет категории к левой границе и паддинги
+        const isDone = task.completed == 1;
+        
+        const div = document.createElement('div');
+        div.className = `task-item ${isDone ? 'completed' : ''}`;
         div.style.cssText = `
             border-left: 4px solid ${cat.color};
-            padding: 12px 16px;
-            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            margin-bottom: 8px;
+            padding: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             gap: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
         `;
 
-        const shortTime = task.time ? task.time.substring(0, 5) : "09:00";
-        const isImportant = (task.is_important == 1);
-
         div.innerHTML = `
-            <input type="checkbox" class="task-check"
-                ${task.completed ? 'checked' : ''}
-                onchange="updateTaskUI('${task.id}', this)"
-                style="width: 20px; height: 20px; flex-shrink: 0;">
-            <div class="task-info" style="flex: 1; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <span class="task-text" style="color: white; font-weight: 500; font-size: 1rem;">
-                        ${task.text}
-                    </span>
-                    ${isImportant ? '<span style="color: #ff453a; font-size: 1rem; margin-left: 8px;">🚩</span>' : ''}
+            <input type="checkbox" ${isDone ? 'checked' : ''} 
+                   onchange="updateTaskUI('${task.id}', this)"
+                   style="accent-color: ${cat.color}; width: 18px; height: 18px;">
+            <div style="flex:1">
+                <div style="color: white; font-size: 0.95rem; ${isDone ? 'text-decoration:line-through; opacity:0.5' : ''}">
+                    ${task.is_important ? '<span style="color:#ff453a">🚩</span> ' : ''}${task.text}
                 </div>
-                <div class="task-time-row" style="font-size: 0.8rem; color: ${cat.color}; font-weight: 600; margin-top: 4px; opacity: 0.9;">
-                    ${shortTime}
+                <div style="color: ${cat.color}; font-size: 0.75rem; font-weight: bold; margin-top: 2px;">
+                    ${task.time || "00:00"}
                 </div>
             </div>
         `;
         taskList.appendChild(div);
     });
 }
-
 function syncCategories() {
     localStorage.setItem('user-categories', JSON.stringify(categories));
     renderCategorySelector();
