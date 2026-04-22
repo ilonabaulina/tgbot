@@ -76,20 +76,31 @@ function selectCategory(id) {
     renderCategorySelector();
     
     const cat = getCategoryById(id);
-    const flagBtn = document.getElementById('flag-icon-trigger');
-    const importantCheckbox = document.getElementById('is-important-checkbox');
-    
-    if (flagBtn && importantCheckbox) {
-        if (importantCheckbox.checked) {
-            flagBtn.style.color = cat.color;
-            flagBtn.style.opacity = "1";
-            flagBtn.style.filter = "brightness(1.2)"; // Просто делаем цвет сочнее
-        } else {
-            flagBtn.style.color = "white";
-            flagBtn.style.opacity = "0.5";
-            flagBtn.style.filter = "none";
-        }
-    }
+// В setupTasks() - ПОЛНОСТЬЮ ЗАМЕНИТЕ блок с флажком на это:
+
+const flagBtn = document.getElementById('flag-icon-trigger');
+if (flagBtn) {
+    flagBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Циклическое переключение категорий
+        const currentIndex = categories.findIndex(c => String(c.id) === String(selectedCategoryId));
+        const nextIndex = (currentIndex + 1) % categories.length;
+        const nextCategory = categories[nextIndex];
+        
+        // Меняем выбранную категорию
+        selectedCategoryId = nextCategory.id;
+        
+        // Обновляем UI
+        renderCategorySelector();
+        
+        // Визуальный отклик
+        flagBtn.style.transform = 'scale(0.9)';
+        setTimeout(() => { flagBtn.style.transform = 'scale(1)'; }, 150);
+        
+        console.log(`🔄 Категория: ${nextCategory.name}`);
+    };
 }
 
 async function fetchTasks() {
@@ -201,38 +212,70 @@ function setupTasks() {
     const addBtn = document.getElementById('add-task-btn');
     const importantCheckbox = document.getElementById('is-important-checkbox');
     const timePicker = document.getElementById('task-time-picker');
-    const flagBtn = document.querySelector('.icon-btn:has(svg), #flag-icon-trigger'); 
+    const flagBtn = document.getElementById('flag-icon-trigger');
 
     if (!taskInput || !addBtn) return;
 
-    if (flagBtn && importantCheckbox) {
-        flagBtn.id = 'flag-icon-trigger'; 
-
+    // ========== ФЛАЖОК ПЕРЕКЛЮЧАЕТ КАТЕГОРИИ ==========
+    if (flagBtn) {
+        // Устанавливаем начальный цвет
+        const startCat = getCategoryById(selectedCategoryId);
+        flagBtn.style.color = startCat.color;
+        flagBtn.style.opacity = "0.6";
+        
+        // Клик - переключение категории
         flagBtn.onclick = (e) => {
             e.preventDefault();
-            importantCheckbox.checked = !importantCheckbox.checked;
+            e.stopPropagation();
             
+            // Находим следующую категорию
+            const currentIndex = categories.findIndex(c => String(c.id) === String(selectedCategoryId));
+            const nextIndex = (currentIndex + 1) % categories.length;
+            const nextCategory = categories[nextIndex];
+            
+            // Обновляем выбранную категорию
+            selectedCategoryId = nextCategory.id;
+            
+            // Обновляем отображение категорий
+            renderCategorySelector();
+            
+            // Меняем цвет флажка
+            if (importantCheckbox && importantCheckbox.checked) {
+                flagBtn.style.color = nextCategory.color;
+                flagBtn.style.opacity = "1";
+                flagBtn.style.filter = `drop-shadow(0 0 5px ${nextCategory.color})`;
+            } else {
+                flagBtn.style.color = nextCategory.color;
+                flagBtn.style.opacity = "0.6";
+                flagBtn.style.filter = "none";
+            }
+            
+            // Анимация нажатия
+            flagBtn.style.transform = 'scale(0.9)';
+            setTimeout(() => { flagBtn.style.transform = 'scale(1)'; }, 150);
+        };
+    }
+
+    // ========== ЧЕКБОКС ВАЖНОСТИ ==========
+    if (importantCheckbox && flagBtn) {
+        importantCheckbox.onchange = () => {
             const cat = getCategoryById(selectedCategoryId);
             if (importantCheckbox.checked) {
-                // Опознавательный знак: цвет + фон
                 flagBtn.style.color = cat.color;
-                flagBtn.style.background = 'rgba(255, 255, 255, 0.15)'; 
-                flagBtn.style.borderRadius = '8px';
-                flagBtn.style.padding = '2px 6px';
-                flagBtn.style.opacity = '1';
-                flagBtn.style.filter = 'brightness(1.2)';
+                flagBtn.style.opacity = "1";
+                flagBtn.style.filter = `drop-shadow(0 0 5px ${cat.color})`;
             } else {
-                // Сброс: белый + прозрачность
-                flagBtn.style.color = 'white';
-                flagBtn.style.background = 'transparent';
-                flagBtn.style.opacity = '0.5';
-                flagBtn.style.filter = 'none';
+                flagBtn.style.color = cat.color;
+                flagBtn.style.opacity = "0.6";
+                flagBtn.style.filter = "none";
             }
         };
     }
 
+    // ========== ДОБАВЛЕНИЕ ЗАДАЧИ ==========
     const performSubmit = async (e) => {
         if (e) { e.preventDefault(); e.stopPropagation(); }
+        
         let text = taskInput.value.trim();
         if (!text) return;
 
@@ -240,6 +283,7 @@ function setupTasks() {
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
         let taskTime = timePicker ? timePicker.value : "09:00";
 
+        // Извлекаем время из текста
         const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
         if (timeMatch) {
             taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
@@ -264,11 +308,11 @@ function setupTasks() {
                 taskInput.value = '';
                 if (importantCheckbox) {
                     importantCheckbox.checked = false;
-                    // Сбрасываем вид кнопки флажка к обычному
+                    const cat = getCategoryById(selectedCategoryId);
                     if (flagBtn) {
-                        flagBtn.style.color = 'white';
-                        flagBtn.style.background = 'transparent';
-                        flagBtn.style.opacity = '0.5';
+                        flagBtn.style.color = cat.color;
+                        flagBtn.style.opacity = "0.6";
+                        flagBtn.style.filter = "none";
                     }
                 }
                 await renderMonth();
@@ -282,7 +326,6 @@ function setupTasks() {
     addBtn.addEventListener('click', performSubmit);
     taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSubmit(e); });
 }
-
 function showYearPicker() {
     const container = document.getElementById('months-container');
     container.innerHTML = '';
@@ -852,30 +895,41 @@ async function clearDayTasks() {
         }
     }
 }
-async function clearDayTasks() {
-    const dateStr = selectedFullDate.toISOString().split('T')[0];
+    // Добавьте эту функцию в script.js
+async function clearAllData() {
+    if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЕ задачи и категории. Вы уверены?')) {
+        return;
+    }
     
-    // Всплывающее окно подтверждения
-    const confirmDelete = confirm(`Вы уверены, что хотите удалить ВСЕ задачи на ${dateStr}?`);
-    
-    if (confirmDelete) {
-        try {
-            const response = await fetch(`${API_URL}/delete_day_tasks`, {
+    try {
+        // Удаляем все задачи
+        const tasks = await fetchTasks();
+        for (const task of tasks) {
+            await fetch(`${API_URL}/delete_task`, {
                 method: 'POST',
                 headers: COMMON_HEADERS,
-                body: JSON.stringify({ 
-                    user_id: USER_ID, 
-                    date: dateStr 
-                })
+                body: JSON.stringify({ id: task.id })
             });
-
-            if (response.ok) {
-                await renderMonth();
-                await refreshTasks();
-            }
-        } catch (e) {
-            console.error("Ошибка при удалении задач за день:", e);
         }
+        
+        // Сбрасываем категории
+        categories = [
+            { id: 'cat1', name: 'Общее', color: '#ff453a' },
+            { id: 'cat2', name: 'Учеба', color: '#af52de' },
+            { id: 'cat3', name: 'Работа', color: '#34c759' }
+        ];
+        localStorage.setItem('user-categories', JSON.stringify(categories));
+        selectedCategoryId = 'cat1';
+        
+        // Обновляем UI
+        await renderMonth();
+        await refreshTasks();
+        renderCategorySelector();
+        
+        alert('✅ Все данные сброшены');
+    } catch (e) {
+        console.error('Ошибка сброса:', e);
+        alert('❌ Ошибка при сбросе');
     }
 }
 // Размер текста
