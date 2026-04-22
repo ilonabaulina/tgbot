@@ -512,11 +512,23 @@ input[type="time"] {
     /* Убираем "мертвую зону" снизу */
     mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
 }
-
-/* Скрываем вторую шестеренку в сайдбаре (если она там есть в HTML) */
-.sidebar-header .settings-btn, 
-.sidebar-header .icon-btn:has(svg[viewBox*="settings"]) {
+/* Убираем шестеренку из сайдбара, но оставляем её в главном окне (если нужно) */
+.sidebar-header .icon-btn, 
+.sidebar-header .settings-btn {
     display: none !important;
+}
+
+/* Стиль для кнопки-флажка при создании задачи */
+#flag-icon-trigger.active {
+    filter: drop-shadow(0 0 5px var(--current-cat-color, #ff453a));
+    color: var(--current-cat-color, #ff453a) !important;
+    opacity: 1 !important;
+    transform: scale(1.1);
+}
+
+/* Для плавности */
+#flag-icon-trigger {
+    transition: all 0.2s ease;
 }
 
 /* Стиль для времени задачи в списке */
