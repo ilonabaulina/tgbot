@@ -201,36 +201,38 @@ function setupTasks() {
     const addBtn = document.getElementById('add-task-btn');
     const importantCheckbox = document.getElementById('is-important-checkbox');
     const timePicker = document.getElementById('task-time-picker');
-    // Ищем кнопку флажка (🚩) по тегу svg или иконке внутри
     const flagBtn = document.querySelector('.icon-btn:has(svg), #flag-icon-trigger'); 
 
     if (!taskInput || !addBtn) return;
 
-    // Логика визуального переключения флажка
-// Внутри setupTasks замени логику флажка:
-if (flagBtn && importantCheckbox) {
-    // Принудительно ставим ID, если его нет в HTML
-    flagBtn.id = 'flag-icon-trigger'; 
+    if (flagBtn && importantCheckbox) {
+        flagBtn.id = 'flag-icon-trigger'; 
 
-flagBtn.onclick = (e) => {
-    e.preventDefault();
-    importantCheckbox.checked = !importantCheckbox.checked;
-    
-    const cat = getCategoryById(selectedCategoryId);
-    if (importantCheckbox.checked) {
-        flagBtn.classList.add('active');
-        flagBtn.style.color = cat.color;
-        flagBtn.style.filter = `drop-shadow(0 0 8px ${cat.color})`;
-    } else {
-        flagBtn.classList.remove('active');
-        flagBtn.style.color = 'white';
-        flagBtn.style.filter = 'none';
+        flagBtn.onclick = (e) => {
+            e.preventDefault();
+            importantCheckbox.checked = !importantCheckbox.checked;
+            
+            const cat = getCategoryById(selectedCategoryId);
+            if (importantCheckbox.checked) {
+                // Опознавательный знак: цвет + фон
+                flagBtn.style.color = cat.color;
+                flagBtn.style.background = 'rgba(255, 255, 255, 0.15)'; 
+                flagBtn.style.borderRadius = '8px';
+                flagBtn.style.padding = '2px 6px';
+                flagBtn.style.opacity = '1';
+                flagBtn.style.filter = 'brightness(1.2)';
+            } else {
+                // Сброс: белый + прозрачность
+                flagBtn.style.color = 'white';
+                flagBtn.style.background = 'transparent';
+                flagBtn.style.opacity = '0.5';
+                flagBtn.style.filter = 'none';
+            }
+        };
     }
-};
 
     const performSubmit = async (e) => {
         if (e) { e.preventDefault(); e.stopPropagation(); }
-
         let text = taskInput.value.trim();
         if (!text) return;
 
@@ -238,12 +240,11 @@ flagBtn.onclick = (e) => {
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
         let taskTime = timePicker ? timePicker.value : "09:00";
 
-const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
-if (timeMatch) {
-    taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
-    // Оставляем текст задачи чистым, без цифр времени
-    text = text.replace(timeMatch[0], "").trim();
-}
+        const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
+        if (timeMatch) {
+            taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
+            text = text.replace(timeMatch[0], "").trim();
+        }
 
         try {
             const response = await fetch(`${API_URL}/add_task`, {
@@ -263,9 +264,11 @@ if (timeMatch) {
                 taskInput.value = '';
                 if (importantCheckbox) {
                     importantCheckbox.checked = false;
+                    // Сбрасываем вид кнопки флажка к обычному
                     if (flagBtn) {
                         flagBtn.style.color = 'white';
-                        flagBtn.style.filter = 'none';
+                        flagBtn.style.background = 'transparent';
+                        flagBtn.style.opacity = '0.5';
                     }
                 }
                 await renderMonth();
@@ -561,17 +564,20 @@ async function refreshTasks() {
     const allTasks = await fetchTasks();
     taskList.innerHTML = '';
 
-    const currentDayStr = selectedFullDate.toISOString().split('T')[0];
-    const dayTasks = allTasks.filter(t => t.date && t.date.startsWith(currentDayStr));
-
-    if (dayTasks.length === 0) {
-        taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">Задач на этот день нет</div>';
+    if (allTasks.length === 0) {
+        taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">Задач нет</div>';
         return;
     }
 
-    dayTasks.sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
+    // Сортируем: сначала важные, потом по дате и времени
+    allTasks.sort((a, b) => {
+        if (a.is_important !== b.is_important) return b.is_important - a.is_important;
+        const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+        const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+        return dateA - dateB;
+    });
 
-    dayTasks.forEach(task => {
+    allTasks.forEach(task => {
         const cat = getCategoryById(task.category_id);
         const isDone = task.completed == 1;
         
@@ -588,22 +594,24 @@ async function refreshTasks() {
             gap: 12px;
         `;
 
-// Внутри refreshTasks, где создается div для задачи:
-const taskTimeFormatted = task.time ? task.time.substring(0, 5) : "09:00"; // Отрезаем секунды (HH:mm)
+        // 4. ДАТА И ВРЕМЯ (Формат: 21 апр. 09:00)
+        const taskDate = new Date(task.date);
+        const dateFormatted = taskDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        const timeFormatted = task.time ? task.time.substring(0, 5) : "09:00";
 
-div.innerHTML = `
-    <input type="checkbox" ${isDone ? 'checked' : ''} 
-           onchange="updateTaskUI('${task.id}', this)"
-           style="accent-color: ${cat.color}; width: 18px; height: 18px;">
-    <div style="flex:1">
-        <div style="color: white; font-size: 0.95rem; ${isDone ? 'text-decoration:line-through; opacity:0.5' : ''}">
-            ${task.is_important ? '<span style="color:#ff453a">🚩</span> ' : ''}${task.text}
-        </div>
-        <div style="color: ${cat.color}; font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
-            ${taskTimeFormatted} • ${selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-        </div>
-    </div>
-`;
+        div.innerHTML = `
+            <input type="checkbox" ${isDone ? 'checked' : ''} 
+                   onchange="updateTaskUI('${task.id}', this)"
+                   style="accent-color: ${cat.color}; width: 18px; height: 18px;">
+            <div style="flex:1">
+                <div style="color: white; font-size: 0.95rem; ${isDone ? 'text-decoration:line-through; opacity:0.5' : ''}">
+                    ${task.is_important ? '<span style="color:#ff453a">🚩</span> ' : ''}${task.text}
+                </div>
+                <div style="color: ${cat.color}; font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
+                    ${dateFormatted}, ${timeFormatted}
+                </div>
+            </div>
+        `;
         taskList.appendChild(div);
     });
 }
@@ -797,6 +805,96 @@ function renderDayView(selectedDate) {
             container.appendChild(createTaskElement(task));
         });
     }
+}
+// Функция смены размера
+function changeFontSize(size) {
+    // 1. Применяем к документу
+    document.documentElement.style.setProperty('--app-font-size', size);
+    
+    // 2. Сохраняем в память
+    localStorage.setItem('user-font-size', size);
+    
+    // Визуальный отклик (опционально: можно подсвечивать активную кнопку)
+    console.log(`Размер шрифта изменен на: ${size}`);
+}
+
+// Добавь это в свою функцию init(), чтобы настройки применялись при старте
+function applySavedSettings() {
+    const savedSize = localStorage.getItem('user-font-size') || '16px';
+    document.documentElement.style.setProperty('--app-font-size', savedSize);
+    
+    // Вызываем уже имеющуюся у тебя функцию акцента
+    applySavedAccent(); 
+}
+async function clearDayTasks() {
+    const dateStr = selectedFullDate.toISOString().split('T')[0];
+    
+    // Всплывающее окно подтверждения
+    const confirmDelete = confirm(`Вы уверены, что хотите удалить ВСЕ задачи на ${dateStr}?`);
+    
+    if (confirmDelete) {
+        try {
+            const response = await fetch(`${API_URL}/delete_day_tasks`, {
+                method: 'POST',
+                headers: COMMON_HEADERS,
+                body: JSON.stringify({ 
+                    user_id: USER_ID, 
+                    date: dateStr 
+                })
+            });
+
+            if (response.ok) {
+                await renderMonth();
+                await refreshTasks();
+            }
+        } catch (e) {
+            console.error("Ошибка при удалении задач за день:", e);
+        }
+    }
+}
+async function clearDayTasks() {
+    const dateStr = selectedFullDate.toISOString().split('T')[0];
+    
+    // Всплывающее окно подтверждения
+    const confirmDelete = confirm(`Вы уверены, что хотите удалить ВСЕ задачи на ${dateStr}?`);
+    
+    if (confirmDelete) {
+        try {
+            const response = await fetch(`${API_URL}/delete_day_tasks`, {
+                method: 'POST',
+                headers: COMMON_HEADERS,
+                body: JSON.stringify({ 
+                    user_id: USER_ID, 
+                    date: dateStr 
+                })
+            });
+
+            if (response.ok) {
+                await renderMonth();
+                await refreshTasks();
+            }
+        } catch (e) {
+            console.error("Ошибка при удалении задач за день:", e);
+        }
+    }
+}
+// Размер текста
+function changeFontSize(size) {
+    document.documentElement.style.setProperty('--app-font-size', size);
+    localStorage.setItem('user-font-size', size);
+}
+
+// Тема оформления
+function setTheme(theme) {
+    document.body.classList.remove('dark-theme', 'light-theme');
+    document.body.classList.add(theme + '-theme');
+    localStorage.setItem('user-theme', theme);
+}
+
+// Компактный режим (вкл/выкл)
+function toggleCompactMode(isEnabled) {
+    document.body.classList.toggle('compact-mode', isEnabled);
+    localStorage.setItem('compact-mode', isEnabled);
 }
 window.editCategoryFull = async function(id) {
     const cat = categories.find(c => c.id == id);
