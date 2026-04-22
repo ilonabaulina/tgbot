@@ -9,27 +9,27 @@
 <body class="dark">
     <div class="app-container">
         <main id="month-view" class="view">
-<header class="header">
-    <div class="header-left">
-        <button class="icon-btn" onclick="showYearPicker()">
-    <svg viewBox="0 0 24 24">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-        <line x1="16" y1="2" x2="16" y2="6"></line>
-        <line x1="8" y1="2" x2="8" y2="6"></line>
-        <line x1="3" y1="10" x2="21" y2="10"></line>
-    </svg>
-</button>
-        <div class="date-titles">
-            <span id="m-title">Июль</span>
-            <span id="y-title">2026</span>
-        </div>
-    </div>
-    <div class="nav">
-        <button onclick="changeMonth(-1)">&lt;</button>
-        <button onclick="goToday()">Сегодня</button>
-        <button onclick="changeMonth(1)">&gt;</button>
-    </div>
-</header>
+            <header class="header">
+                <div class="header-left">
+                    <button class="icon-btn" onclick="showYearPicker()">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </button>
+                    <div class="date-titles">
+                        <span id="m-title">Июль</span>
+                        <span id="y-title">2026</span>
+                    </div>
+                </div>
+                <div class="nav">
+                    <button onclick="changeMonth(-1)">&lt;</button>
+                    <button onclick="goToday()">Сегодня</button>
+                    <button onclick="changeMonth(1)">&gt;</button>
+                </div>
+            </header>
             <div class="weekdays">
                 <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
             </div>
@@ -37,18 +37,18 @@
         </main>
 
         <div id="year-picker" class="view hidden">
-    <header class="header">
-        <div class="nav">
-            <button onclick="changeYear(-1)">&lt;</button>
+            <header class="header">
+                <div class="nav">
+                    <button onclick="changeYear(-1)">&lt;</button>
+                </div>
+                <span id="picker-year-title">2026</span>
+                <div class="nav">
+                    <button onclick="changeYear(1)">&gt;</button>
+                    <button onclick="hideYearPicker()">Назад</button>
+                </div>
+            </header>
+            <div id="months-container" class="months-container"></div>
         </div>
-        <span id="picker-year-title">2026</span>
-        <div class="nav">
-            <button onclick="changeYear(1)">&gt;</button>
-            <button onclick="hideYearPicker()">Назад</button>
-        </div>
-    </header>
-    <div id="months-container" class="months-container"></div>
-</div>
 
         <div id="day-detail-view" class="view hidden">
             <header class="header">
@@ -59,102 +59,98 @@
             <div id="hourly-grid" class="hourly-schedule"></div>
         </div>
 
-<aside class="sidebar" id="main-sidebar">
-    <div class="sidebar-content">
-        <div class="sidebar-header">
-            <h2 id="side-date">Задачи</h2>
-            <div class="settings-container" style="display: flex; gap: 8px;">
-                <button class="icon-btn setting-trigger" onclick="toggleCategoryManager()" title="Категории">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                    </svg>
-                </button>
+        <aside class="sidebar" id="main-sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h2 id="side-date">Задачи</h2>
+                    <div class="settings-container" style="display: flex; gap: 8px;">
+                        <button class="icon-btn setting-trigger" onclick="toggleCategoryManager()" title="Категории">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
+                        </button>
 
-                <button class="icon-btn setting-trigger" onclick="toggleSettings()" title="Настройки">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                </button>
+                        <button class="icon-btn setting-trigger" onclick="toggleSettings()" title="Настройки">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                        </button>
 
-                <div id="category-manager-popup" class="settings-popup hidden">
-                    <div class="settings-header">Категории</div>
-                    <div id="categories-list" class="category-manager"></div>
-                    <div class="divider"></div>
-                    <div class="add-category-form" style="display: flex; gap: 5px;">
-                        <input type="text" id="new-cat-name" placeholder="Название" style="flex: 1; font-size: 0.8rem;">
-                        <input type="color" id="new-cat-color" value="#ff453a" style="width: 30px; height: 24px; border: none; background: none; cursor: pointer;">
-                        <button onclick="addNewCategory()" class="nav-btn" style="padding: 2px 8px;">+</button>
+                        <div id="category-manager-popup" class="settings-popup hidden">
+                            <div class="settings-header">Категории</div>
+                            <div id="categories-list" class="category-manager"></div>
+                            <div class="divider"></div>
+                            <div class="add-category-form" style="display: flex; gap: 5px;">
+                                <input type="text" id="new-cat-name" placeholder="Название" style="flex: 1; font-size: 0.8rem;">
+                                <input type="color" id="new-cat-color" value="#ff453a" style="width: 30px; height: 24px; border: none; background: none; cursor: pointer;">
+                                <button onclick="addNewCategory()" class="nav-btn" style="padding: 2px 8px;">+</button>
+                            </div>
+                        </div>
+
+                        <div id="settings-menu" class="settings-popup hidden">
+                            <div class="settings-header">Настройки</div>
+                            <div class="setting-item">
+                                <span>Цвет акцента</span>
+                                <input type="color" id="accent-color-picker" onchange="changeAccent(this.value)">
+                            </div>
+                            <div class="setting-item">
+                                <span>Тема оформления</span>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="setTheme('dark')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Темная</button>
+                                    <button onclick="setTheme('light')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Светлая</button>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <span>Размер текста</span>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="changeFontSize('14px')" class="nav-btn" style="padding: 2px 5px;">A-</button>
+                                    <button onclick="changeFontSize('16px')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Стандарт</button>
+                                    <button onclick="changeFontSize('20px')" class="nav-btn" style="padding: 2px 5px;">A+</button>
+                                </div>
+                            </div>
+                            <div class="divider"></div>
+                            <button class="danger-btn" onclick="clearDayTasks()" style="background: rgba(255, 69, 58, 0.1); margin-bottom: 8px;">Очистить задачи за день</button>
+                            <button class="danger-btn" onclick="clearAllData()">Сбросить всё</button>
+                        </div>
                     </div>
                 </div>
 
-              <div id="settings-menu" class="settings-popup hidden">
-    <div class="settings-header">Настройки</div>
-    
-    <div class="setting-item">
-        <span>Цвет акцента</span>
-        <input type="color" id="accent-color-picker" onchange="changeAccent(this.value)">
-    </div>
+                <div class="add-task-container">
+                    <div class="date-selector-row">
+                        <button class="nav-arrow" onclick="changeSelectedDay(-1)">&lt;</button>
+                        <div class="current-date-display" onclick="openMiniCalendar()">
+                            <span id="selected-date-text"></span>
+                            <input type="date" id="hidden-date-picker" style="display:none" onchange="handleMiniCalChange(this.value)">
+                        </div>
+                        <button class="nav-arrow" onclick="changeSelectedDay(1)">&gt;</button>
+                    </div>
 
-    <div class="setting-item">
-        <span>Тема оформления</span>
-        <div style="display: flex; gap: 5px;">
-            <button onclick="setTheme('dark')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Темная</button>
-            <button onclick="setTheme('light')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Светлая</button>
-        </div>
-    </div>
+                    <div id="category-selector" class="category-selector"></div>
 
-    <div class="setting-item">
-        <span>Размер текста</span>
-        <div style="display: flex; gap: 5px;">
-            <button onclick="changeFontSize('14px')" class="nav-btn" style="padding: 2px 5px;">A-</button>
-            <button onclick="changeFontSize('16px')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Стандарт</button>
-            <button onclick="changeFontSize('20px')" class="nav-btn" style="padding: 2px 5px;">A+</button>
-        </div>
-    </div>
+                    <div class="add-task-box">
+                        <input type="text" id="new-task-input" placeholder="Название задачи...">
+                        <button id="add-task-btn" type="button">+</button>
+                    </div>
 
-    <div class="setting-item">
-        <span>Компактный вид</span>
-        <input type="checkbox" id="compact-mode-check" onchange="toggleCompactMode(this.checked)">
-    </div>
-
-    <div class="divider"></div>
-
-    <button class="danger-btn" onclick="clearDayTasks()" style="background: rgba(255, 69, 58, 0.1); margin-bottom: 8px;">
-        Очистить задачи за день
-    </button>
-
-    <button class="danger-btn" onclick="clearAllData()">Сбросить всё</button>
-</div>
-        <div class="add-task-container">
-            <div class="date-selector-row">
-                <button class="nav-arrow" onclick="changeSelectedDay(-1)">&lt;</button>
-                <div class="current-date-display" onclick="openMiniCalendar()">
-                    <span id="selected-date-text"></span>
-                    <input type="date" id="hidden-date-picker" style="display:none" onchange="handleMiniCalChange(this.value)">
-                </div>
-                <button class="nav-arrow" onclick="changeSelectedDay(1)">&gt;</button>
-            </div>
-
-            <div id="category-selector" class="category-selector">
+                    <div class="time-picker-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+                        <input type="time" id="task-time-picker" value="09:00">
+                        
+                        <button type="button" class="icon-btn" id="flag-icon-trigger" style="transition: 0.3s; padding: 5px; opacity: 0.5;">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                <line x1="4" y1="22" x2="4" y2="15"></line>
+                            </svg>
+                        </button>
+                        
+                        <input type="checkbox" id="is-important-checkbox" style="display: none;">
+                    </div>
                 </div>
 
-            <div class="add-task-box">
-                <input type="text" id="new-task-input" name="task_text" placeholder="Название задачи...">
-                <button id="add-task-btn" type="button">+</button>
+                <div id="task-list" class="task-list"></div>
             </div>
-            <div class="time-picker-row">
-    <input type="time" id="task-time-picker" value="09:00" step="60">
-    <label style="font-size: 0.8rem; color: var(--text-dim); display: flex; align-items: center; gap: 5px; cursor: pointer;">
-        <input type="checkbox" id="is-important-checkbox"> Флажок
-    </label>
-            </div>
-        </div>
-
-        <div id="task-list" class="task-list"></div>
-    </div>
-</aside>
+        </aside>
     </div>
     <script src="script.js"></script>
 </body>
