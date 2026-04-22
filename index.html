@@ -89,25 +89,44 @@
                     </div>
                 </div>
 
-                <div id="settings-menu" class="settings-popup hidden">
-                    <div class="settings-header">Настройки</div>
-                    <div class="setting-item">
-                        <span>Цвет акцента</span>
-                        <input type="color" id="accent-color-picker" onchange="changeAccent(this.value)">
-                    </div>
-                    <div class="setting-item">
-                        <span>Неделя с</span>
-                        <select onchange="updateWeekStart(this.value)">
-                            <option value="1">Пн</option>
-                            <option value="0">Вс</option>
-                        </select>
-                    </div>
-                    <div class="divider"></div>
-                    <button class="danger-btn" onclick="clearAllData()">Сбросить всё</button>
-                </div>
-            </div>
-        </div>
+              <div id="settings-menu" class="settings-popup hidden">
+    <div class="settings-header">Настройки</div>
+    
+    <div class="setting-item">
+        <span>Цвет акцента</span>
+        <input type="color" id="accent-color-picker" onchange="changeAccent(this.value)">
+    </div>
 
+    <div class="setting-item">
+        <span>Тема оформления</span>
+        <div style="display: flex; gap: 5px;">
+            <button onclick="setTheme('dark')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Темная</button>
+            <button onclick="setTheme('light')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Светлая</button>
+        </div>
+    </div>
+
+    <div class="setting-item">
+        <span>Размер текста</span>
+        <div style="display: flex; gap: 5px;">
+            <button onclick="changeFontSize('14px')" class="nav-btn" style="padding: 2px 5px;">A-</button>
+            <button onclick="changeFontSize('16px')" class="nav-btn" style="padding: 2px 5px; font-size: 0.7rem;">Стандарт</button>
+            <button onclick="changeFontSize('20px')" class="nav-btn" style="padding: 2px 5px;">A+</button>
+        </div>
+    </div>
+
+    <div class="setting-item">
+        <span>Компактный вид</span>
+        <input type="checkbox" id="compact-mode-check" onchange="toggleCompactMode(this.checked)">
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="danger-btn" onclick="clearDayTasks()" style="background: rgba(255, 69, 58, 0.1); margin-bottom: 8px;">
+        Очистить задачи за день
+    </button>
+
+    <button class="danger-btn" onclick="clearAllData()">Сбросить всё</button>
+</div>
         <div class="add-task-container">
             <div class="date-selector-row">
                 <button class="nav-arrow" onclick="changeSelectedDay(-1)">&lt;</button>
