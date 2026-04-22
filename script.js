@@ -35,30 +35,26 @@ async function init() {
     renderCategorySelector();
 }
 
-function selectCategory(id) {
-    selectedCategoryId = id;
-    renderCategorySelector();
-    
-    const cat = getCategoryById(id);
-    
-    // 1. ПЕРЕДАЕМ ЦВЕТ В CSS: теперь браузер знает, какой цвет сейчас главный
-    document.documentElement.style.setProperty('--current-cat-color', cat.color);
-    
-    const flagBtn = document.getElementById('flag-icon-trigger');
-    const importantCheckbox = document.getElementById('is-important-checkbox');
-    
-    // 2. ОБНОВЛЯЕМ ВИД ФЛАЖКА СРАЗУ:
-    if (flagBtn && importantCheckbox) {
-        if (importantCheckbox.checked) {
-            // Если задача важная, красим флажок в цвет категории и добавляем свечение
-            flagBtn.style.color = cat.color;
-            flagBtn.style.filter = `drop-shadow(0 0 8px ${cat.color})`;
-        } else {
-            // Если не важная — возвращаем обычный вид
-            flagBtn.style.color = 'white';
-            flagBtn.style.filter = 'none';
-        }
-    }
+function renderCategorySelector() {
+    const container = document.getElementById('category-selector');
+    if (!container) return;
+
+    container.innerHTML = categories.map(cat => {
+        const isActive = String(selectedCategoryId) === String(cat.id);
+        
+        // Стиль: если активна — полная яркость и заливка, если нет — контур и прозрачность
+        const style = isActive 
+            ? `background: ${cat.color}; color: white; border: 1px solid ${cat.color}; opacity: 1; font-weight: bold;` 
+            : `background: transparent; color: ${cat.color}; border: 1px solid ${cat.color}; opacity: 0.6;`;
+
+        return `
+            <div class="cat-chip"
+                 style="${style}"
+                 onclick="selectCategory('${cat.id}')">
+                ${cat.name}
+            </div>
+        `;
+    }).join('');
 }
 
 window.editCategoryName = function(id) {
@@ -80,14 +76,19 @@ function selectCategory(id) {
     renderCategorySelector();
     
     const cat = getCategoryById(id);
-    // Передаем цвет категории в CSS переменную, чтобы флажок знал, каким светиться
-    document.documentElement.style.setProperty('--current-cat-color', cat.color);
-    
-    // Если флажок уже был выбран (важная задача), обновляем его цвет мгновенно
     const flagBtn = document.getElementById('flag-icon-trigger');
     const importantCheckbox = document.getElementById('is-important-checkbox');
-    if (flagBtn && importantCheckbox && importantCheckbox.checked) {
-        flagBtn.classList.add('active');
+    
+    if (flagBtn && importantCheckbox) {
+        if (importantCheckbox.checked) {
+            flagBtn.style.color = cat.color;
+            flagBtn.style.opacity = "1";
+            flagBtn.style.filter = "brightness(1.2)"; // Просто делаем цвет сочнее
+        } else {
+            flagBtn.style.color = "white";
+            flagBtn.style.opacity = "0.5";
+            flagBtn.style.filter = "none";
+        }
     }
 }
 
@@ -587,19 +588,22 @@ async function refreshTasks() {
             gap: 12px;
         `;
 
-        div.innerHTML = `
-            <input type="checkbox" ${isDone ? 'checked' : ''} 
-                   onchange="updateTaskUI('${task.id}', this)"
-                   style="accent-color: ${cat.color}; width: 18px; height: 18px;">
-            <div style="flex:1">
-                <div style="color: white; font-size: 0.95rem; ${isDone ? 'text-decoration:line-through; opacity:0.5' : ''}">
-                    ${task.is_important ? '<span style="color:#ff453a">🚩</span> ' : ''}${task.text}
-                </div>
-                <div style="color: ${cat.color}; font-size: 0.75rem; font-weight: bold; margin-top: 2px;">
-                    ${task.time || "00:00"}
-                </div>
-            </div>
-        `;
+// Внутри refreshTasks, где создается div для задачи:
+const taskTimeFormatted = task.time ? task.time.substring(0, 5) : "09:00"; // Отрезаем секунды (HH:mm)
+
+div.innerHTML = `
+    <input type="checkbox" ${isDone ? 'checked' : ''} 
+           onchange="updateTaskUI('${task.id}', this)"
+           style="accent-color: ${cat.color}; width: 18px; height: 18px;">
+    <div style="flex:1">
+        <div style="color: white; font-size: 0.95rem; ${isDone ? 'text-decoration:line-through; opacity:0.5' : ''}">
+            ${task.is_important ? '<span style="color:#ff453a">🚩</span> ' : ''}${task.text}
+        </div>
+        <div style="color: ${cat.color}; font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
+            ${taskTimeFormatted} • ${selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+        </div>
+    </div>
+`;
         taskList.appendChild(div);
     });
 }
