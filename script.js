@@ -763,6 +763,39 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+async function syncTasksFromBot() {
+    try {
+        const response = await fetch(`${API_URL}/bot/user_tasks?user_id=${USER_ID}`, {
+            headers: COMMON_HEADERS
+        });
+        
+        if (response.ok) {
+            const botTasks = await response.json();
+            console.log('📦 Синхронизация с ботом:', botTasks.length, 'задач');
+            
+            for (const botTask of botTasks) {
+                if (botTask.date && botTask.completed == 0) {
+                    await fetch(`${API_URL}/add_task`, {
+                        method: 'POST',
+                        headers: COMMON_HEADERS,
+                        body: JSON.stringify({
+                            user_id: USER_ID,
+                            text: botTask.text,
+                            date: botTask.date,
+                            time: botTask.time || '09:00',
+                            category_id: botTask.category_id || 'cat1',
+                            is_important: botTask.is_important || 0
+                        })
+                    });
+                }
+            }
+            await refreshTasks();
+            await renderMonth();
+        }
+    } catch (e) {
+        console.error("Ошибка синхронизации:", e);
+    }
+}
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
@@ -773,6 +806,7 @@ async function init() {
     updateDateDisplay();
     await refreshTasks();
     renderCategorySelector();
+     await syncTasksFromBot();
 }
 
 init();
