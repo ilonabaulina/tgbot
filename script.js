@@ -183,13 +183,17 @@ async function renderMonth() {
             dayNode.appendChild(badgeContainer);
         }
 
-        dayNode.onclick = async () => {
-            selectedFullDate = new Date(y, m, d);
-            updateDateDisplay();
-            await renderMonth();
-            if (typeof openDayDetail === 'function') openDayDetail(d);
-            await refreshTasks();
-        };
+dayNode.onclick = async () => {
+    selectedFullDate = new Date(y, m, d);
+    updateDateDisplay();
+    await renderMonth();
+    await refreshTasks();
+    // Автоматически фокусируемся на поле ввода задачи
+    const taskInput = document.getElementById('new-task-input');
+    if (taskInput) {
+        taskInput.focus();
+    }
+};
 
         grid.appendChild(dayNode);
     }
