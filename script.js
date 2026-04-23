@@ -1,7 +1,7 @@
 let currentViewDate = new Date();
 let selectedFullDate = new Date();
 let tasks = [];
-const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev";
+const API_URL = "https://tgbot-api-yxdc.onrender.com";
 
 // ========== ПОЛУЧАЕМ USER_ID ИЗ TELEGRAM ==========
 let USER_ID = 12345;
