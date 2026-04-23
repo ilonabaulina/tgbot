@@ -518,6 +518,8 @@ async function refreshTasks() {
     if (!taskList) return;
 
     const allTasks = await fetchTasks();
+    
+    // ===== ВАЖНО: Показываем ВСЕ невыполненные задачи (без фильтра по дате) =====
     const incompleteTasks = allTasks.filter(t => t.completed == 0);
     
     if (incompleteTasks.length === 0) {
@@ -525,6 +527,7 @@ async function refreshTasks() {
         return;
     }
 
+    // Сортируем по дате и времени
     incompleteTasks.sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
         const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
@@ -542,17 +545,20 @@ async function refreshTasks() {
         div.className = 'task-item';
         div.style.cssText = `border-left: 4px solid ${cat.color}; background: rgba(255, 255, 255, 0.05); margin-bottom: 8px; padding: 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px;`;
         div.innerHTML = `
-            <input type="checkbox" onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 22px; height: 22px; cursor: pointer;">
+            <input type="checkbox" ${task.completed == 1 ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 22px; height: 22px; cursor: pointer;">
             <div style="flex:1">
-                <div style="color: white; font-size: 1rem;">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</div>
-                <div style="color: ${cat.color}; font-size: 0.75rem; margin-top: 4px;">📅 ${dateFormatted} • 🕐 ${timeFormatted}</div>
+                <div style="color: white; font-size: 1rem; ${task.completed == 1 ? 'text-decoration:line-through; opacity:0.5' : ''}">
+                    ${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}
+                </div>
+                <div style="color: ${cat.color}; font-size: 0.75rem; margin-top: 4px;">
+                    📅 ${dateFormatted} • 🕐 ${timeFormatted}
+                </div>
             </div>
             <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer; font-size: 18px;">🗑️</button>
         `;
         taskList.appendChild(div);
     });
 }
-
 async function completeTask(taskId, checkbox) {
     try {
         const response = await fetch(`${API_URL}/update_task_status`, {
