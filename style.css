@@ -291,9 +291,9 @@ body.light-theme .task-item {
     flex-shrink: 0;
 }
 
-.sidebar-header .icon-btn, 
-.sidebar-header .settings-btn {
-    display: none !important;
+/* Кнопки в сайдбаре видны */
+.sidebar-header .icon-btn {
+    display: flex;
 }
 
 #side-date { font-size: 1.6rem; font-weight: 800; }
