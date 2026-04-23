@@ -137,14 +137,103 @@ body.light-theme {
     color: #1c1c1e;
 }
 
-body.light-theme .app-container, 
-body.light-theme .sidebar {
-    background-color: #ffffff;
+/* Светлая тема */
+body.light-theme {
+    background-color: #f5f5f7;
     color: #1c1c1e;
 }
 
+body.light-theme .app-container {
+    background-color: #f5f5f7;
+}
+
+body.light-theme .sidebar {
+    background-color: #ffffff;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme .sidebar-content {
+    background-color: #ffffff;
+}
+
+body.light-theme .view {
+    background-color: #f5f5f7;
+}
+
+body.light-theme .day {
+    background: #ffffff;
+    color: #1c1c1e;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme .day.selected {
+    background: var(--accent) !important;
+    color: white !important;
+}
+
+body.light-theme .day.today {
+    border: 2px solid var(--accent);
+}
+
 body.light-theme .task-item {
-    background: rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .cat-chip {
+    background: #f2f2f7;
+    color: #1c1c1e;
+}
+
+body.light-theme .add-task-box {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme #new-task-input {
+    color: #1c1c1e;
+}
+
+body.light-theme .weekdays {
+    color: #8e8e93;
+}
+
+body.light-theme .settings-popup {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .nav {
+    background: #ffffff;
+}
+
+body.light-theme .nav button, 
+body.light-theme .nav-btn {
+    background: #f2f2f7;
+    color: #1c1c1e;
+}
+
+body.light-theme .icon-btn {
+    color: #1c1c1e;
+}
+
+body.light-theme .date-titles span:last-child {
+    color: var(--accent);
+}
+
+body.light-theme #side-date {
+    color: #1c1c1e;
+}
+
+body.light-theme .danger-btn {
+    background: rgba(255, 69, 58, 0.1);
+}
+
+body.light-theme .time-picker-row input[type="time"] {
+    background: #f2f2f7;
+    color: #1c1c1e;
 }
 
 .task-item-mini {
@@ -434,17 +523,44 @@ input[type="time"] {
 }
 
 /* --- 8. СПИСОК ЗАДАЧ (ИСПРАВЛЕНА ПРОКРУТКА) --- */
+/* СПИСОК ЗАДАЧ С УДОБНОЙ ПРОКРУТКОЙ */
 #task-list {
     flex: 1;
     overflow-y: auto !important;
     overflow-x: hidden;
     min-height: 0;
     padding-right: 4px;
+    padding-bottom: 20px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
+/* Увеличиваем высоту задачи для удобного нажатия */
+.task-item {
+    padding: 16px 14px !important;
+    min-height: 74px;
+    cursor: pointer;
+}
+
+.task-item input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+/* На мобильных устройствах */
+@media (max-width: 768px) {
+    #task-list {
+        max-height: calc(50vh - 180px);
+        padding-bottom: 80px;
+    }
+    
+    .task-item {
+        padding: 14px 12px !important;
+        min-height: 68px;
+    }
+}
 /* Кастомизация скроллбара */
 #task-list::-webkit-scrollbar {
     width: 4px;
@@ -459,16 +575,6 @@ input[type="time"] {
     border-radius: 10px;
 }
 
-.task-item {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px;
-    background: var(--card);
-    border-radius: 16px;
-    transition: 0.2s;
-    flex-shrink: 0;
-}
 
 .task-check {
     appearance: none;
