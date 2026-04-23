@@ -313,6 +313,13 @@ function setupTasks() {
         } catch (err) {
             console.error("Ошибка при отправке:", err);
         }
+if (window.Telegram && Telegram.WebApp) {
+    Telegram.WebApp.sendData(JSON.stringify({
+        text: text,
+        date: dateStr,
+        time: taskTime
+    }));
+}
     };
 
     addBtn.addEventListener('click', performSubmit);
