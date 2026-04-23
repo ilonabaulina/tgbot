@@ -650,7 +650,24 @@ input[type="time"] {
     color: var(--current-cat-color, var(--accent)) !important;
     filter: drop-shadow(0 0 10px var(--current-cat-color, var(--accent)));
 }
+/* Детальный вид дня */
+.hour-row {
+    margin-bottom: 15px;
+}
 
+.quick-add-task {
+    transition: all 0.2s ease;
+}
+
+.quick-add-task:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.hourly-schedule {
+    overflow-y: auto;
+    padding-right: 10px;
+    flex: 1;
+}
 /* --- 10. МОБИЛЬНАЯ АДАПТАЦИЯ --- */
 @media (max-width: 768px) {
     .app-container {
@@ -669,6 +686,7 @@ input[type="time"] {
         width: 100%;
         height: 50vh;
         border-left: none;
+        border-top: 1px solid var(--border);
     }
 
     .sidebar-content {
@@ -694,6 +712,25 @@ input[type="time"] {
     
     .date-titles {
         font-size: 1.2rem;
+    }
+}
+
+/* --- ДЛЯ НОУТБУКОВ И БОЛЬШИХ ЭКРАНОВ (сайдбар справа) --- */
+@media (min-width: 769px) {
+    .app-container {
+        flex-direction: row;
+    }
+    
+    .sidebar {
+        width: 360px;
+        height: 100vh;
+        border-left: 1px solid var(--border);
+        border-top: none;
+    }
+    
+    .view {
+        flex: 1;
+        height: 100vh;
     }
 }
 
