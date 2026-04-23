@@ -2,7 +2,28 @@ let currentViewDate = new Date(); // Текущий месяц в календа
 let selectedFullDate = new Date(); // День, выбранный в сайдбаре
 let tasks = [];
 const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev"; // Твой сервер
-const USER_ID = 12345; // Твой ID (или из Telegram WebApp)
+// ========== ПОЛУЧАЕМ USER_ID ИЗ TELEGRAM ==========
+let USER_ID = 12345; // Временный дефолт
+
+// Пытаемся получить ID из Telegram WebApp
+if (window.Telegram && Telegram.WebApp) {
+    const tgUser = Telegram.WebApp.initDataUnsafe?.user;
+    if (tgUser && tgUser.id) {
+        USER_ID = tgUser.id;
+        console.log('✅ Telegram user ID:', USER_ID);
+    }
+}
+
+// Если не получили - берем из localStorage (для тестирования)
+const savedUserId = localStorage.getItem('telegram_user_id');
+if (!USER_ID && savedUserId) {
+    USER_ID = parseInt(savedUserId);
+}
+
+console.log('👤 Используется USER_ID:', USER_ID);
+
+// ========== ВСЕ API ЗАПРОСЫ ДОЛЖНЫ ИСПОЛЬЗОВАТЬ USER_ID ==========
+// Пример: в fetchTasks(), add_task и т.д. везде user_id: USER_ID
 
 const COMMON_HEADERS = {
     'ngrok-skip-browser-warning': '69420',
@@ -188,6 +209,7 @@ dayNode.onclick = async () => {
     updateDateDisplay();
     await renderMonth();
     await refreshTasks();
+    openDayDetail(d); 
     // Автоматически фокусируемся на поле ввода задачи
     const taskInput = document.getElementById('new-task-input');
     if (taskInput) {
@@ -325,6 +347,22 @@ if (window.Telegram && Telegram.WebApp) {
     addBtn.addEventListener('click', performSubmit);
     taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSubmit(e); });
 }
+async function syncTasksFromBot() {
+    try {
+        const response = await fetch(`${API_URL}/bot/user_tasks?user_id=${USER_ID}`, {
+            headers: COMMON_HEADERS
+        });
+        
+        if (response.ok) {
+            const botTasks = await response.json();
+            // Категории уже есть в botTasks
+            await refreshTasks();
+            await renderMonth();
+        }
+    } catch (e) {
+        console.error("Ошибка синхронизации:", e);
+    }
+}
 function showYearPicker() {
     const container = document.getElementById('months-container');
     container.innerHTML = '';
@@ -367,99 +405,111 @@ function toggleSettings() {
     document.getElementById('settings-menu').classList.toggle('hidden');
 }
 
-async function openDayDetail(day) {
-    document.getElementById('detail-date-title').innerText = `${day} ${months[currentViewDate.getMonth()]}`;
-    const hGrid = document.getElementById('hourly-grid');
-    if (!hGrid) return;
-    hGrid.innerHTML = '';
-
+function openDayDetail(day) {
     const y = currentViewDate.getFullYear();
-    const m = String(currentViewDate.getMonth() + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    const fullDateStr = `${y}-${m}-${d}`;
-
-    const tasks = await fetchTasks();
-
-    for (let h = 0; h < 24; h++) {
-        const hourStr = String(h).padStart(2, '0');
-
-        const tasksInThisHour = tasks.filter(t => {
-            const taskDate = t.date ? t.date.split(' ')[0] : "";
-            const taskHour = t.time ? t.time.split(':')[0] : "";
-            return taskDate === fullDateStr && taskHour === hourStr;
-        });
-
-        const taskHtml = tasksInThisHour.map(t => {
-            // ИСПОЛЬЗУЕМ НАШУ НОВУЮ ФУНКЦИЮ ДЛЯ ЦВЕТА
-            const cat = getCategoryById(t.category_id);
-            return `
-                <div class="task-item-mini ${t.completed ? 'completed' : ''}" 
-                     style="--task-color: ${cat.color}; border-left: 4px solid var(--task-color); margin-bottom: 4px;">
-                    <input type="checkbox" class="task-check" 
-                           ${t.completed ? 'checked' : ''} 
-                           onchange="updateTaskUI('${t.id}', this)">
-                    <span class="task-text" style="${t.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
-                        ${t.is_important == 1 ? '🚩 ' : ''}${t.text}
-                    </span>
-                </div>
-            `;
-        }).join('');
-
-        hGrid.innerHTML += `
-            <div class="hour-row" style="min-height: 45px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex;">
-                <div class="time-label" style="width: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); font-size: 0.7rem; color: #8e8e93;">
-                    ${h}:00
-                </div>
-                <div class="hour-wrapper" style="flex: 1; padding: 5px 10px; display: flex; flex-direction: column;">
-                    <div class="hour-tasks-list">${taskHtml}</div>
-                    <div class="hour-input-area" 
-                         data-hour="${h}" 
-                         contenteditable="true" 
-                         placeholder="Введите задачу..."
-                         style="outline: none; min-height: 20px; font-size: 0.8rem; color: ${getCategoryById(selectedCategoryId).color}; opacity: 0.6; transition: 0.2s;"></div>
-                </div>
-            </div>`;
-    }
-
+    const m = currentViewDate.getMonth();
+    const selectedDate = new Date(y, m, day);
+    
+    // Показываем детальный вид
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
+    
+    // Устанавливаем заголовок
+    const dateStr = selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('detail-date-title').innerText = dateStr;
+    
+    // Загружаем задачи за этот день
+    renderHourlyTasks(selectedDate);
 }
 
-document.addEventListener('focusin', (e) => {
-    if (e.target.classList.contains('hour-input-area')) {
-        if (e.target.innerText.trim() === '') {
+function renderHourlyTasks(date) {
+    const container = document.getElementById('hourly-grid');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const dateStr = date.toISOString().split('T')[0];
+    
+    // Получаем задачи за этот день
+    const dayTasks = tasks.filter(t => t.date === dateStr && t.completed == 0);
+    
+    // Группируем по часам
+    const tasksByHour = {};
+    dayTasks.forEach(task => {
+        const hour = task.time ? task.time.split(':')[0] : '09';
+        if (!tasksByHour[hour]) tasksByHour[hour] = [];
+        tasksByHour[hour].push(task);
+    });
+    
+    // Отображаем 24 часа
+    for (let h = 0; h < 24; h++) {
+        const hourStr = h.toString().padStart(2, '0');
+        const hourTasks = tasksByHour[hourStr] || [];
+        
+        const hourDiv = document.createElement('div');
+        hourDiv.className = 'hour-row';
+        hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; display: flex;';
+        
+        hourDiv.innerHTML = `
+            <div style="width: 60px; color: #8e8e93; font-size: 0.8rem;">${hourStr}:00</div>
+            <div style="flex: 1;">
+                ${hourTasks.map(task => {
+                    const cat = getCategoryById(task.category_id);
+                    return `
+                        <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 8px; margin-bottom: 5px; border-radius: 8px;">
+                            <input type="checkbox" onchange="completeTask('${task.id}', this)" style="margin-right: 10px;">
+                            <span>${task.is_important ? '🚩 ' : ''}${task.text}</span>
+                            <small style="color: ${cat.color}; margin-left: 10px;">${task.time || '09:00'}</small>
+                        </div>
+                    `;
+                }).join('')}
+                <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" style="color: #8e8e93; font-size: 0.8rem; padding: 5px; outline: none;" placeholder="+ Добавить задачу"></div>
+            </div>
+        `;
+        container.appendChild(hourDiv);
+    }
+}
+
+// Добавляем обработчик для быстрого добавления
+document.addEventListener('keydown', async (e) => {
+    if (e.target.classList && e.target.classList.contains('quick-add-task') && e.key === 'Enter') {
+        e.preventDefault();
+        const text = e.target.innerText.trim();
+        const hour = e.target.getAttribute('data-hour');
+        if (!text) return;
+        
+        const dateStr = document.getElementById('detail-date-title').innerText;
+        // Парсим дату из заголовка
+        const dateParts = dateStr.match(/(\d+)\s+(\w+)\s+(\d+)/);
+        if (dateParts) {
+            // Создаем задачу
+            const fullDate = selectedFullDate.toISOString().split('T')[0];
+            await addTaskDirect(text, fullDate, `${hour}:00`);
             e.target.innerText = '';
-        }
-        e.target.style.opacity = '1';
-    }
-});
-
-document.addEventListener('focusout', (e) => {
-    if (e.target.classList.contains('hour-input-area')) {
-        if (e.target.innerText.trim() === '') {
-            e.target.innerText = '';
-            e.target.style.opacity = '0.4';
+            await refreshTasks();
+            await renderMonth();
+            renderHourlyTasks(selectedFullDate);
         }
     }
 });
 
-document.addEventListener('mousedown', (e) => {
-    const settingsMenu = document.getElementById('settings-menu');
-    const categoryPopup = document.getElementById('category-manager-popup');
-    const settingsBtn = document.querySelector('.icon-btn');
-
-    if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
-        if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
-            settingsMenu.classList.add('hidden');
-        }
+async function addTaskDirect(text, date, time) {
+    try {
+        await fetch(`${API_URL}/add_task`, {
+            method: 'POST',
+            headers: COMMON_HEADERS,
+            body: JSON.stringify({
+                user_id: USER_ID,
+                text: text,
+                date: date,
+                time: time,
+                category_id: selectedCategoryId,
+                is_important: 0
+            })
+        });
+    } catch(e) {
+        console.error(e);
     }
-
-    if (categoryPopup && !categoryPopup.classList.contains('hidden')) {
-        if (!categoryPopup.contains(e.target)) {
-            categoryPopup.classList.add('hidden');
-        }
-    }
-});
+}
 
 document.addEventListener('keydown', async (e) => {
     if (e.target.classList.contains('hour-input-area') && e.key === 'Enter') {
@@ -656,6 +706,55 @@ async function refreshTasks() {
         `;
         taskList.appendChild(div);
     });
+}
+// ДОБАВЬТЕ ЭТИ ФУНКЦИИ В КОНЕЦ ФАЙЛА:
+
+async function completeTask(taskId, checkbox) {
+    try {
+        const response = await fetch(`${API_URL}/update_task_status`, {
+            method: 'POST',
+            headers: COMMON_HEADERS,
+            body: JSON.stringify({ id: taskId, completed: 1 })
+        });
+        
+        if (response.ok) {
+            // Плавное удаление задачи из списка
+            const taskItem = checkbox.closest('.task-item');
+            if (taskItem) {
+                taskItem.style.opacity = '0';
+                taskItem.style.transform = 'translateX(20px)';
+                setTimeout(async () => {
+                    await refreshTasks();  // Обновляем список
+                    await renderMonth();   // Обновляем календарь
+                }, 200);
+            } else {
+                await refreshTasks();
+                await renderMonth();
+            }
+        } else {
+            checkbox.checked = false;
+        }
+    } catch (e) {
+        console.error("Ошибка:", e);
+        checkbox.checked = false;
+    }
+}
+
+async function deleteTask(taskId) {
+    if (!confirm('Удалить задачу?')) return;
+    try {
+        const response = await fetch(`${API_URL}/delete_task`, {
+            method: 'POST',
+            headers: COMMON_HEADERS,
+            body: JSON.stringify({ id: taskId })
+        });
+        if (response.ok) {
+            await refreshTasks();
+            await renderMonth();
+        }
+    } catch (e) {
+        console.error("Ошибка:", e);
+    }
 }
 function syncCategories() {
     localStorage.setItem('user-categories', JSON.stringify(categories));
