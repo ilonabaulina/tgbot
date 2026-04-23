@@ -1,0 +1,3 @@
+web:
+gunicorn
+api:app
