@@ -3,13 +3,17 @@ import sqlite3
 conn = sqlite3.connect('bot_database.db')
 cursor = conn.cursor()
 
-# Создаем таблицу по правилам: уникальный ID и обязательные поля
 cursor.executescript('''
--- 1. Таблица пользователей (добавили колонку для темы календаря)
+-- 1. Таблица пользователей
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,    -- ID из Telegram
+    user_id INTEGER PRIMARY KEY,
     username TEXT NOT NULL,
-    calendar_theme TEXT DEFAULT 'light' 
+    last_seen TEXT,
+    calendar_theme TEXT DEFAULT 'light',
+    group_number TEXT,
+    subgroup INTEGER DEFAULT 0,
+    user_status TEXT DEFAULT 'active',
+    status_until DATETIME
 );
 
 -- 2. Таблица задач (напоминалки)
@@ -17,33 +21,47 @@ CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     task_text TEXT NOT NULL,
-    notify_at DATETIME,             -- Когда напомнить
-    is_done INTEGER DEFAULT 0,      -- 0 = не сделано, 1 = сделано
-    FOREIGN KEY (user_id) REFERENCES users (user_id)
+    notify_at DATETIME,
+    is_done INTEGER DEFAULT 0,
+    is_important INTEGER DEFAULT 0,
+    category_id TEXT,
+    date TEXT,
+    time TEXT
 );
 
--- 3. Таблица расписания пар
+-- 3. Таблица категорий
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL
+);
+
+-- 4. Таблица расписания пар
 CREATE TABLE IF NOT EXISTS schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
-    day_of_week INTEGER,            -- 0 (Пн) ... 6 (Вс)
+    day_of_week INTEGER,
     lesson_name TEXT,
-    start_time TEXT,                -- Например, "09:00"
-    room TEXT,                      -- Аудитория
-    FOREIGN KEY (user_id) REFERENCES users (user_id)
+    start_time TEXT,
+    end_time TEXT,
+    room TEXT,
+    lesson_type TEXT,
+    week_numbers TEXT,
+    is_custom INTEGER DEFAULT 0
 );
 
--- 4. Таблица дневника (эмоции)
+-- 5. Таблица дневника (эмоции)
 CREATE TABLE IF NOT EXISTS diary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     entry_date DATE DEFAULT (DATE('now')),
     content TEXT,
-    emotion TEXT,                   -- Смайлик или текст
-    FOREIGN KEY (user_id) REFERENCES users (user_id)
+    emotion TEXT
 );
 ''')
-# 1. Добавляем колонки в таблицу пользователей
+
+# Добавляем колонки в таблицу пользователей (если их нет)
 try:
     cursor.execute("ALTER TABLE users ADD COLUMN group_number TEXT")
     cursor.execute("ALTER TABLE users ADD COLUMN subgroup INTEGER DEFAULT 0")
@@ -53,7 +71,7 @@ try:
 except sqlite3.OperationalError:
     print("Колонки в users уже существуют")
 
-# 2. Добавляем колонки в таблицу расписания
+# Добавляем колонки в таблицу расписания
 try:
     cursor.execute("ALTER TABLE schedule ADD COLUMN end_time TEXT")
     cursor.execute("ALTER TABLE schedule ADD COLUMN lesson_type TEXT")
@@ -62,5 +80,17 @@ try:
     print("Таблица schedule обновлена")
 except sqlite3.OperationalError:
     print("Колонки в schedule уже существуют")
+
+# Добавляем колонки в tasks
+try:
+    cursor.execute("ALTER TABLE tasks ADD COLUMN date TEXT")
+    cursor.execute("ALTER TABLE tasks ADD COLUMN time TEXT")
+    cursor.execute("ALTER TABLE tasks ADD COLUMN is_important INTEGER DEFAULT 0")
+    cursor.execute("ALTER TABLE tasks ADD COLUMN category_id TEXT")
+    print("Таблица tasks обновлена")
+except sqlite3.OperationalError:
+    print("Колонки в tasks уже существуют")
+
 conn.commit()
 conn.close()
+print("✅ База данных создана и обновлена!")
