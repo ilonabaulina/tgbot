@@ -62,26 +62,22 @@ def save_initial_task(user_id, text):
 
     notify_at = event_time - timedelta(minutes=15)
     task_text = text.replace(found_raw, "").strip().capitalize()
-    if not task_text: task_text = "Напоминание"
+    if not task_text:
+        task_text = "Напоминание"
 
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             formatted_time = notify_at.strftime('%Y-%m-%d %H:%M')
-            # Сохраняем для бота
-            cursor.execute(
-                "INSERT INTO tasks (user_id, task_text, notify_at, is_done) VALUES (?, ?, ?, 0)",
-                (user_id, task_text, formatted_time)
-            )
-            task_id = cursor.lastrowid
-
-            # ВОТ ЭТА СТРОЧКА ДЛЯ МИНИ АППА (чтобы данные там появились)
-            display_time = event_time.strftime('%H:%M')
+            date_str = event_time.strftime('%Y-%m-%d')
+            time_str = event_time.strftime('%H:%M')
+            
             cursor.execute("""
-                INSERT INTO university_schedule (user_id, lesson_name, start_time, room, day_of_week) 
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, task_text, display_time, "Личное", now.weekday()))
-
+                INSERT INTO tasks (user_id, task_text, notify_at, is_done, date, time) 
+                VALUES (?, ?, ?, 0, ?, ?)
+            """, (user_id, task_text, formatted_time, date_str, time_str))
+            
+            task_id = cursor.lastrowid
             conn.commit()
             return task_id, event_time, task_text
     except Exception as e:
@@ -124,20 +120,20 @@ def sync_bsuir_schedule(user_id, group_number):
         root = tree.getroot()
         with get_connection() as conn:
             cursor = conn.cursor()
-            # Очищаем старое, кроме личных заметок
-            cursor.execute("DELETE FROM university_schedule WHERE user_id = ? AND room != 'Личное'", (user_id,))
+            cursor.execute("DELETE FROM schedule WHERE user_id = ? AND room != 'Личное'", (user_id,))
 
-            days_map = {'Понедельник': 0, 'Вторник': 1, 'Среда': 2, 'Четверг': 3, 'Пятница': 4, 'Суббота': 5,
-                        'Воскресенье': 6}
+            days_map = {'Понедельник': 0, 'Вторник': 1, 'Среда': 2, 'Четверг': 3, 'Пятница': 4, 'Суббота': 5, 'Воскресенье': 6}
             for day_name, day_idx in days_map.items():
                 day_node = root.find(f".//{day_name}")
-                if day_node is None: continue
+                if day_node is None:
+                    continue
                 for item in day_node.findall('item'):
                     subject = item.findtext('subject', 'Пара')
                     start = item.findtext('startLessonTime', '??:??')
-                    cursor.execute(
-                        "INSERT INTO university_schedule (user_id, day_of_week, lesson_name, start_time, room) VALUES (?, ?, ?, ?, ?)",
-                        (user_id, day_idx, subject, start, "БГУИР"))
+                    cursor.execute("""
+                        INSERT INTO schedule (user_id, day_of_week, lesson_name, start_time, room) 
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (user_id, day_idx, subject, start, "БГУИР"))
             conn.commit()
         return True
     except Exception as e:
@@ -145,26 +141,48 @@ def sync_bsuir_schedule(user_id, group_number):
         return False
 
 
-def save_task_from_webapp(user_id, task_text, task_date):
+def update_user_status(user_id, status):
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE users SET user_status = ? WHERE user_id = ?", (status, user_id))
+            conn.commit()
+        except:
+            pass
+
+
+def get_user_categories(user_id):
+    """Получает категории пользователя"""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
-            # Важно: task_date должен быть 'YYYY-MM-DD'
-            notify_time = f"{task_date} 09:00"
+            cursor.execute("SELECT id, name, color FROM categories WHERE user_id = ?", (user_id,))
+            rows = cursor.fetchall()
+            if rows:
+                return rows
+            # Создаем дефолтные категории
+            default_cats = [
+                (user_id, 'Общее', '#ff453a'),
+                (user_id, 'Учеба', '#af52de'),
+                (user_id, 'Работа', '#34c759'),
+                (user_id, 'Личное', '#ff9f0a')
+            ]
+            for cat in default_cats:
+                cursor.execute("INSERT INTO categories (user_id, name, color) VALUES (?, ?, ?)", cat)
+            conn.commit()
+            cursor.execute("SELECT id, name, color FROM categories WHERE user_id = ?", (user_id,))
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return [(1, 'Общее', '#ff453a'), (2, 'Учеба', '#af52de'), (3, 'Работа', '#34c759')]
 
-            # В таблицу для уведомлений бота
-            cursor.execute(
-                "INSERT INTO tasks (user_id, task_text, notify_at, is_done) VALUES (?, ?, ?, 0)",
-                (user_id, task_text, notify_time)
-            )
 
-            # В таблицу для отображения в Mini App
-            date_obj = datetime.strptime(task_date, '%Y-%m-%d')
-            cursor.execute("""
-                INSERT INTO university_schedule (user_id, day_of_week, lesson_name, start_time, room) 
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, date_obj.weekday(), task_text, "09:00", "Mini App"))
-
+def update_task_category(task_id, category_id):
+    """Обновляет категорию задачи"""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE tasks SET category_id = ? WHERE id = ?", (str(category_id), task_id))
             conn.commit()
             return True
     except Exception as e:
@@ -172,12 +190,30 @@ def save_task_from_webapp(user_id, task_text, task_date):
         return False
 
 
-# ФУНКЦИЯ ДЛЯ СТАТУСА (чтобы script1.py не выдавал ошибку)
-def update_user_status(user_id, status):
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute("UPDATE users SET user_status = ? WHERE user_id = ?", (status, user_id))
-        except:
-            pass
-        conn.commit()
+def save_task_from_webapp(user_id, task_text, task_date, task_time="09:00", category_id=None):
+    """Сохраняет задачу из Mini App"""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            notify_time = f"{task_date} {task_time}:00"
+            cursor.execute("""
+                INSERT INTO tasks (user_id, task_text, notify_at, is_done, date, time, category_id) 
+                VALUES (?, ?, ?, 0, ?, ?, ?)
+            """, (user_id, task_text, notify_time, task_date, task_time, category_id))
+            conn.commit()
+            return cursor.lastrowid
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return None
+
+
+def get_task_by_id(task_id):
+    """Получает задачу по ID"""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, user_id, task_text, notify_at, is_done, category_id FROM tasks WHERE id = ?", (task_id,))
+            return cursor.fetchone()
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return None
