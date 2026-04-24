@@ -4,22 +4,39 @@ let tasks = [];
 const API_URL = "https://jumble-seismic-silenced.ngrok-free.dev";
 
 // ========== ПОЛУЧАЕМ USER_ID ИЗ TELEGRAM ==========
-let USER_ID = 12345;
+let USER_ID = null;
 
+// Способ 1: из Telegram WebApp
 if (window.Telegram && Telegram.WebApp) {
     const tgUser = Telegram.WebApp.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
         USER_ID = tgUser.id;
-        console.log('Telegram user ID:', USER_ID);
+        console.log('Telegram user ID from WebApp:', USER_ID);
     }
 }
 
+// Способ 2: из URL параметра
+const urlParams = new URLSearchParams(window.location.search);
+const urlUserId = urlParams.get('user_id');
+if (!USER_ID && urlUserId) {
+    USER_ID = parseInt(urlUserId);
+    console.log('Telegram user ID from URL:', USER_ID);
+}
+
+// Способ 3: из localStorage
 const savedUserId = localStorage.getItem('telegram_user_id');
 if (!USER_ID && savedUserId) {
     USER_ID = parseInt(savedUserId);
+    console.log('Telegram user ID from localStorage:', USER_ID);
 }
 
-console.log('USER_ID:', USER_ID);
+// Способ 4: спросить у пользователя
+if (!USER_ID) {
+    USER_ID = prompt('Введите ваш Telegram ID (напишите боту /id)');
+    localStorage.setItem('telegram_user_id', USER_ID);
+}
+
+console.log('FINAL USER_ID:', USER_ID);
 
 const COMMON_HEADERS = {
     'ngrok-skip-browser-warning': '69420',
@@ -55,6 +72,10 @@ function getCategoryById(id) {
 
 // ========== РАБОТА С СЕРВЕРОМ ==========
 async function fetchTasks() {
+    if (!USER_ID) {
+        console.error("USER_ID не установлен");
+        return [];
+    }
     try {
         const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
             method: 'GET',
@@ -71,6 +92,7 @@ async function fetchTasks() {
 }
 
 async function fetchCategories() {
+    if (!USER_ID) return;
     try {
         const res = await fetch(`${API_URL}/get_categories?user_id=${USER_ID}`, {
             method: 'GET',
@@ -349,7 +371,7 @@ async function renderHourlyTasksForDate(date) {
         tasksByHour[hour].push(task);
     });
     
-    // ПОЛНАЯ СЕТКА: проходим по всем 24 часам
+    // ПОЛНАЯ СЕТКА: все 24 часа
     for (let h = 0; h < 24; h++) {
         const hourStr = h.toString().padStart(2, '0');
         const hourTasks = tasksByHour[hourStr] || [];
@@ -385,6 +407,7 @@ async function renderHourlyTasksForDate(date) {
         container.appendChild(hourDiv);
     }
 }
+
 function closeDayDetail() {
     document.getElementById('day-detail-view').classList.add('hidden');
     document.getElementById('month-view').classList.remove('hidden');
@@ -496,7 +519,7 @@ async function refreshTasks() {
     if (!taskList) return;
 
     const allTasks = await fetchTasks();
-    // Все невыполненные задачи (completed == 0 или null/undefined)
+    // Все невыполненные задачи
     const incompleteTasks = allTasks.filter(t => t.completed == 0 || t.completed == null);
     
     console.log("Активных задач в сайдбаре:", incompleteTasks.length);
@@ -828,6 +851,10 @@ async function syncTasksFromBot() {
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
+    if (!USER_ID) {
+        console.error("Не удалось получить USER_ID");
+        return;
+    }
     await fetchCategories();
     await renderMonth();
     setupTasks();
