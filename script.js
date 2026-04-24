@@ -233,7 +233,7 @@ async function renderMonth() {
         }
         dayNode.innerHTML = `<span>${d}</span>`;
 
-        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr && t.completed == 0);
+       const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr);
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
             badgeContainer.style.cssText = `position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; padding: 0 4px; pointer-events: none;`;
@@ -512,7 +512,7 @@ async function refreshTasks() {
     const allTasks = await fetchTasks();
     
     // ===== ВАЖНО: Показываем ВСЕ невыполненные задачи (без фильтра по дате) =====
-    const incompleteTasks = allTasks.filter(t => t.completed == 0);
+ const incompleteTasks = allTasks.filter(t => t.completed == 0);
     
     if (incompleteTasks.length === 0) {
         taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">✨ Все задачи выполнены!</div>';
@@ -559,8 +559,11 @@ async function completeTask(taskId, checkbox) {
             body: JSON.stringify({ id: taskId, completed: 1 })
         });
         if (response.ok) {
+            // Обновляем список задач в сайдбаре
             await refreshTasks();
+            // Обновляем календарь (убираем точки/полоски)
             await renderMonth();
+            // Если открыт детальный вид дня — обновляем его
             if (document.getElementById('day-detail-view') && !document.getElementById('day-detail-view').classList.contains('hidden')) {
                 await renderHourlyTasksForDate(selectedFullDate);
             }
