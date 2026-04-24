@@ -250,7 +250,10 @@ async function renderMonth() {
         }
 
         dayNode.onclick = async () => {
-            selectedFullDate = new Date(y, m, d);
+selectedFullDate = new Date(y, m, d);
+if (isNaN(selectedFullDate.getTime())) {
+    selectedFullDate = new Date();
+}
             updateDateDisplay();
             await renderMonth();
             await refreshTasks();
@@ -311,6 +314,10 @@ function openDayDetail(day) {
     const m = currentViewDate.getMonth();
     const selectedDate = new Date(y, m, day);
     
+        if (isNaN(selectedDate.getTime())) {
+        console.error("Invalid date:", y, m, day);
+        return;
+    }
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
     
@@ -668,11 +675,18 @@ async function clearAllData() {
 // ========== ВСПОМОГАТЕЛЬНЫЕ ==========
 function updateDateDisplay() {
     const display = document.getElementById('selected-date-text');
-    if (display) {
-        display.innerText = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (display && selectedFullDate) {
+        // Проверяем, что дата валидная
+        if (isNaN(selectedFullDate.getTime())) {
+            selectedFullDate = new Date();
+        }
+        display.innerText = selectedFullDate.toLocaleDateString('ru-RU', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
     }
 }
-
 function openMiniCalendar() {
     const picker = document.getElementById('hidden-date-picker');
     if (picker) picker.showPicker();
