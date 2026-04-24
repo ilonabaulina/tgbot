@@ -58,12 +58,14 @@ async function fetchTasks() {
     try {
         const res = await fetch(`${API_URL}/get_tasks?user_id=${USER_ID}`, {
             method: 'GET',
-            headers: COMMON_HEADERS
+            headers: COMMON_HEADERS,
+            cache: 'no-cache'
         });
         if (!res.ok) return [];
         const data = await res.json();
         return Array.isArray(data) ? data : [];
     } catch (e) {
+        console.error("fetchTasks error:", e);
         return [];
     }
 }
@@ -233,8 +235,8 @@ async function renderMonth() {
         }
         dayNode.innerHTML = `<span>${d}</span>`;
 
-        // ТОЛЬКО НЕВЫПОЛНЕННЫЕ ЗАДАЧИ ДЛЯ ПЛАШЕК
-        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr && t.completed == 0);
+        // Только невыполненные задачи для плашек
+        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr && (t.completed == 0 || t.completed == null));
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
             badgeContainer.style.cssText = `position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; padding: 0 4px; pointer-events: none;`;
@@ -334,7 +336,7 @@ async function renderHourlyTasksForDate(date) {
     const dateStr = date.toISOString().split('T')[0];
     const allTasks = await fetchTasks();
     
-    // ПОКАЗЫВАЕМ ВСЕ ЗАДАЧИ НА ДЕНЬ (И ВЫПОЛНЕННЫЕ, И НЕТ)
+    // Показываем все задачи на день
     const dayTasks = allTasks.filter(t => t.date === dateStr);
     
     console.log(`Задачи на ${dateStr}:`, dayTasks.length);
@@ -380,7 +382,10 @@ async function renderHourlyTasksForDate(date) {
                         </div>
                     `;
                 }).join('')}
-                <div contenteditable="true" class="quick-add-task" data-hour="${hour}" data-date="${dateStr}" style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);">+ Добавить задачу</div>
+                <div contenteditable="true" class="quick-add-task" data-hour="${hour}" data-date="${dateStr}" 
+                    style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);"
+                    onfocus="if(this.innerText === '+ Добавить задачу') this.innerText = '';"
+                    onblur="if(this.innerText === '') this.innerText = '+ Добавить задачу';">+ Добавить задачу</div>
             </div>
         `;
         container.appendChild(hourDiv);
@@ -480,14 +485,8 @@ function setupTasks() {
                 }
                 await renderMonth();
                 await refreshTasks();
-                
-                if (window.Telegram && Telegram.WebApp) {
-                    Telegram.WebApp.sendData(JSON.stringify({
-                        text: text,
-                        date: dateStr,
-                        time: taskTime,
-                        category_id: selectedCategoryId
-                    }));
+                if (document.getElementById('day-detail-view') && !document.getElementById('day-detail-view').classList.contains('hidden')) {
+                    await renderHourlyTasksForDate(selectedFullDate);
                 }
             }
         } catch (err) {
@@ -504,8 +503,8 @@ async function refreshTasks() {
     if (!taskList) return;
 
     const allTasks = await fetchTasks();
-    // ТОЛЬКО НЕВЫПОЛНЕННЫЕ ЗАДАЧИ ДЛЯ САЙДБАРА
-    const incompleteTasks = allTasks.filter(t => t.completed == 0);
+    // Все невыполненные задачи (completed == 0 или null/undefined)
+    const incompleteTasks = allTasks.filter(t => t.completed == 0 || t.completed == null);
     
     console.log("Активных задач в сайдбаре:", incompleteTasks.length);
     
@@ -554,6 +553,7 @@ async function completeTask(taskId, checkbox) {
             body: JSON.stringify({ id: taskId, completed: 1 })
         });
         if (response.ok) {
+            checkbox.checked = true;
             await refreshTasks();
             await renderMonth();
             if (document.getElementById('day-detail-view') && !document.getElementById('day-detail-view').classList.contains('hidden')) {
@@ -564,6 +564,7 @@ async function completeTask(taskId, checkbox) {
         }
     } catch (e) {
         checkbox.checked = false;
+        console.error("Ошибка completeTask:", e);
     }
 }
 
@@ -583,7 +584,7 @@ async function deleteTask(taskId) {
             }
         }
     } catch (e) {
-        console.error("Ошибка:", e);
+        console.error("Ошибка deleteTask:", e);
     }
 }
 
@@ -633,6 +634,9 @@ async function clearDayTasks() {
         }
         await refreshTasks();
         await renderMonth();
+        if (document.getElementById('day-detail-view') && !document.getElementById('day-detail-view').classList.contains('hidden')) {
+            await renderHourlyTasksForDate(selectedFullDate);
+        }
     } catch (e) {
         console.error("Ошибка:", e);
     }
@@ -709,7 +713,7 @@ function changeSelectedDay(offset) {
 document.addEventListener('keydown', async (e) => {
     if (e.target.classList && e.target.classList.contains('quick-add-task') && e.key === 'Enter') {
         e.preventDefault();
-        const text = e.target.innerText.trim();
+        let text = e.target.innerText.trim();
         const hour = e.target.getAttribute('data-hour');
         const date = e.target.getAttribute('data-date');
         
