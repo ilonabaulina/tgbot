@@ -749,10 +749,18 @@ async function syncTasksFromBot() {
         
         if (response.ok) {
             const botTasks = await response.json();
-            console.log('Синхронизация с ботом:', botTasks.length, 'задач');
+            const existingTasks = await fetchTasks();
+            
+            // Создаём Set существующих задач (по тексту + дате + времени)
+            const existingKeys = new Set(existingTasks.map(t => `${t.text}_${t.date}_${t.time}`));
+            
+            let newTasksCount = 0;
             
             for (const botTask of botTasks) {
-                if (botTask.date && botTask.completed == 0) {
+                const key = `${botTask.text}_${botTask.date}_${botTask.time}`;
+                
+                // Добавляем только если такой задачи ещё нет
+                if (botTask.date && botTask.completed == 0 && !existingKeys.has(key)) {
                     await fetch(`${API_URL}/add_task`, {
                         method: 'POST',
                         headers: COMMON_HEADERS,
@@ -765,16 +773,21 @@ async function syncTasksFromBot() {
                             is_important: botTask.is_important || 0
                         })
                     });
+                    newTasksCount++;
                 }
             }
-            await refreshTasks();
-            await renderMonth();
+            
+            console.log(`Синхронизация: добавлено ${newTasksCount} новых задач`);
+            
+            if (newTasksCount > 0) {
+                await refreshTasks();
+                await renderMonth();
+            }
         }
     } catch (e) {
         console.error("Ошибка синхронизации:", e);
     }
 }
-
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
     await fetchCategories();
