@@ -10,7 +10,7 @@ if (window.Telegram && Telegram.WebApp) {
     const tgUser = Telegram.WebApp.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
         USER_ID = tgUser.id;
-        console.log('✅ Telegram user ID:', USER_ID);
+        console.log('Telegram user ID:', USER_ID);
     }
 }
 
@@ -19,7 +19,7 @@ if (!USER_ID && savedUserId) {
     USER_ID = parseInt(savedUserId);
 }
 
-console.log('👤 Используется USER_ID:', USER_ID);
+console.log('USER_ID:', USER_ID);
 
 const COMMON_HEADERS = {
     'ngrok-skip-browser-warning': '69420',
@@ -41,7 +41,7 @@ let categories = JSON.parse(localStorage.getItem('user-categories')) || [
 
 let selectedCategoryId = 'cat1';
 
-// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+// ========== ВСПОМОГАТЕЛЬНЫЕ ==========
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -135,7 +135,7 @@ function renderCategoryManagerList() {
         <div class="category-manage-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid rgba(255,255,255,0.05);">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="width: 12px; height: 12px; border-radius: 50%; background: ${cat.color};"></div>
-                <span style="font-size: 1rem;">${cat.name}</span>
+                <span>${cat.name}</span>
             </div>
             <div style="display: flex; gap: 4px;">
                 <button onclick="editCategoryFull('${cat.id}')">✏️</button>
@@ -207,8 +207,8 @@ async function renderMonth() {
     const y = currentViewDate.getFullYear();
     const m = currentViewDate.getMonth();
 
-    if (document.getElementById('m-title')) document.getElementById('m-title').innerText = months[m];
-    if (document.getElementById('y-title')) document.getElementById('y-title').innerText = y;
+    document.getElementById('m-title').innerText = months[m];
+    document.getElementById('y-title').innerText = y;
 
     let firstDay = new Date(y, m, 1).getDay();
     let shift = (firstDay === 0) ? 6 : firstDay - 1;
@@ -233,7 +233,7 @@ async function renderMonth() {
         }
         dayNode.innerHTML = `<span>${d}</span>`;
 
-       const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr);
+        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr);
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
             badgeContainer.style.cssText = `position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; padding: 0 4px; pointer-events: none;`;
@@ -250,14 +250,11 @@ async function renderMonth() {
         }
 
         dayNode.onclick = async () => {
-selectedFullDate = new Date(y, m, d);
-if (isNaN(selectedFullDate.getTime())) {
-    selectedFullDate = new Date();
-}
+            selectedFullDate = new Date(y, m, d);
             updateDateDisplay();
             await renderMonth();
             await refreshTasks();
-            openDayDetail();
+            openDayDetail(d);
         };
         grid.appendChild(dayNode);
     }
@@ -314,10 +311,11 @@ function openDayDetail(day) {
     const m = currentViewDate.getMonth();
     const selectedDate = new Date(y, m, day);
     
-        if (isNaN(selectedDate.getTime())) {
+    if (isNaN(selectedDate.getTime())) {
         console.error("Invalid date:", y, m, day);
         return;
     }
+    
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
     
@@ -361,7 +359,7 @@ async function renderHourlyTasksForDate(date) {
                         <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
                             <div style="flex:1;">
-                                <span style="color: white;">${task.is_important ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
+                                <span>${task.is_important ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
                                 <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 3px;">${task.time || '09:00'}</div>
                             </div>
                             <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
@@ -372,24 +370,6 @@ async function renderHourlyTasksForDate(date) {
             </div>
         `;
         container.appendChild(hourDiv);
-    }
-}
-async function completeTaskFromDetail(taskId, checkbox) {
-    try {
-        const response = await fetch(`${API_URL}/update_task_status`, {
-            method: 'POST',
-            headers: COMMON_HEADERS,
-            body: JSON.stringify({ id: taskId, completed: 1 })
-        });
-        if (response.ok) {
-            await renderHourlyTasksForDate(selectedFullDate);
-            await refreshTasks();
-            await renderMonth();
-        } else {
-            checkbox.checked = false;
-        }
-    } catch (e) {
-        checkbox.checked = false;
     }
 }
 
@@ -510,16 +490,13 @@ async function refreshTasks() {
     if (!taskList) return;
 
     const allTasks = await fetchTasks();
-    
-    // ===== ВАЖНО: Показываем ВСЕ невыполненные задачи (без фильтра по дате) =====
- const incompleteTasks = allTasks.filter(t => t.completed == 0);
+    const incompleteTasks = allTasks.filter(t => t.completed == 0);
     
     if (incompleteTasks.length === 0) {
-        taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">✨ Все задачи выполнены!</div>';
+        taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">Все задачи выполнены!</div>';
         return;
     }
 
-    // Сортируем по дате и времени
     incompleteTasks.sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
         const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
@@ -537,20 +514,21 @@ async function refreshTasks() {
         div.className = 'task-item';
         div.style.cssText = `border-left: 4px solid ${cat.color}; background: rgba(255, 255, 255, 0.05); margin-bottom: 8px; padding: 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px;`;
         div.innerHTML = `
-            <input type="checkbox" ${task.completed == 1 ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 22px; height: 22px; cursor: pointer;">
+            <input type="checkbox" onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 22px; height: 22px; cursor: pointer;">
             <div style="flex:1">
-                <div style="color: white; font-size: 1rem; ${task.completed == 1 ? 'text-decoration:line-through; opacity:0.5' : ''}">
+                <div style="color: white; font-size: 1rem;">
                     ${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}
                 </div>
                 <div style="color: ${cat.color}; font-size: 0.75rem; margin-top: 4px;">
-                    📅 ${dateFormatted} • 🕐 ${timeFormatted}
+                    ${dateFormatted} • ${timeFormatted}
                 </div>
             </div>
-            <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer; font-size: 18px;">🗑️</button>
+            <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
         `;
         taskList.appendChild(div);
     });
 }
+
 async function completeTask(taskId, checkbox) {
     try {
         const response = await fetch(`${API_URL}/update_task_status`, {
@@ -559,11 +537,8 @@ async function completeTask(taskId, checkbox) {
             body: JSON.stringify({ id: taskId, completed: 1 })
         });
         if (response.ok) {
-            // Обновляем список задач в сайдбаре
             await refreshTasks();
-            // Обновляем календарь (убираем точки/полоски)
             await renderMonth();
-            // Если открыт детальный вид дня — обновляем его
             if (document.getElementById('day-detail-view') && !document.getElementById('day-detail-view').classList.contains('hidden')) {
                 await renderHourlyTasksForDate(selectedFullDate);
             }
@@ -628,7 +603,7 @@ function setTheme(theme) {
 
 async function clearDayTasks() {
     const dateStr = selectedFullDate.toISOString().split('T')[0];
-    if (!confirm(`Удалить ВСЕ задачи на ${dateStr}?`)) return;
+    if (!confirm(`Удалить все задачи на ${dateStr}?`)) return;
     try {
         const allTasks = await fetchTasks();
         const dayTasks = allTasks.filter(t => t.date === dateStr);
@@ -647,7 +622,7 @@ async function clearDayTasks() {
 }
 
 async function clearAllData() {
-    if (!confirm('⚠️ Удалить ВСЕ задачи и категории?')) return;
+    if (!confirm('Удалить все задачи и категории?')) return;
     try {
         const allTasks = await fetchTasks();
         for (const task of allTasks) {
@@ -668,10 +643,10 @@ async function clearAllData() {
         await renderMonth();
         await refreshTasks();
         renderCategorySelector();
-        alert('✅ Все данные сброшены');
+        alert('Все данные сброшены');
     } catch (e) {
         console.error('Ошибка:', e);
-        alert('❌ Ошибка сброса');
+        alert('Ошибка сброса');
     }
 }
 
@@ -679,7 +654,6 @@ async function clearAllData() {
 function updateDateDisplay() {
     const display = document.getElementById('selected-date-text');
     if (display && selectedFullDate) {
-        // Проверяем, что дата валидная
         if (isNaN(selectedFullDate.getTime())) {
             selectedFullDate = new Date();
         }
@@ -690,6 +664,7 @@ function updateDateDisplay() {
         });
     }
 }
+
 function openMiniCalendar() {
     const picker = document.getElementById('hidden-date-picker');
     if (picker) picker.showPicker();
@@ -765,6 +740,7 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+
 async function syncTasksFromBot() {
     try {
         const response = await fetch(`${API_URL}/bot/user_tasks?user_id=${USER_ID}`, {
@@ -773,7 +749,7 @@ async function syncTasksFromBot() {
         
         if (response.ok) {
             const botTasks = await response.json();
-            console.log('📦 Синхронизация с ботом:', botTasks.length, 'задач');
+            console.log('Синхронизация с ботом:', botTasks.length, 'задач');
             
             for (const botTask of botTasks) {
                 if (botTask.date && botTask.completed == 0) {
@@ -808,7 +784,7 @@ async function init() {
     updateDateDisplay();
     await refreshTasks();
     renderCategorySelector();
-     await syncTasksFromBot();
+    await syncTasksFromBot();
 }
 
 init();
