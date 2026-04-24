@@ -306,8 +306,10 @@ function changeYear(d) {
 }
 
 // ========== ДЕТАЛЬНЫЙ ВИД ДНЯ ==========
-function openDayDetail() {
-    const selectedDate = selectedFullDate;
+function openDayDetail(day) {
+    const y = currentViewDate.getFullYear();
+    const m = currentViewDate.getMonth();
+    const selectedDate = new Date(y, m, day);
     
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
@@ -339,49 +341,32 @@ async function renderHourlyTasksForDate(date) {
         const hourTasks = tasksByHour[hourStr] || [];
         
         const hourDiv = document.createElement('div');
-        hourDiv.className = 'hour-row';
-        hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; display: flex; flex-direction: column;';
-        
-        const hourHeader = document.createElement('div');
-        hourHeader.style.cssText = 'display: flex; align-items: center; margin-bottom: 5px;';
-        hourHeader.innerHTML = `<div style="width: 60px; color: var(--accent); font-weight: bold;">${hourStr}:00</div><div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>`;
-        hourDiv.appendChild(hourHeader);
-        
-        const tasksContainer = document.createElement('div');
-        tasksContainer.style.cssText = 'margin-left: 60px;';
-        
-        hourTasks.forEach(task => {
-            const cat = getCategoryById(task.category_id);
-            const taskDiv = document.createElement('div');
-            taskDiv.style.cssText = `background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px;`;
-            taskDiv.innerHTML = `
-                <input type="checkbox" onchange="completeTaskFromDetail('${task.id}', this)" style="width: 20px; height: 20px; accent-color: ${cat.color};">
-                <div style="flex: 1;">
-                    <span style="color: white;">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
-                    <div style="color: ${cat.color}; font-size: 0.7rem;">${task.time || '09:00'}</div>
-                </div>
-                <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
-            `;
-            tasksContainer.appendChild(taskDiv);
-        });
-        
-        const addField = document.createElement('div');
-        addField.contentEditable = 'true';
-        addField.className = 'quick-add-task';
-        addField.setAttribute('data-hour', hourStr);
-        addField.setAttribute('data-date', dateStr);
-        addField.style.cssText = 'color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; margin-top: 5px; background: rgba(255,255,255,0.03);';
-        addField.innerHTML = '+ Добавить задачу';
-        
-        addField.onfocus = () => { if (addField.innerHTML === '+ Добавить задачу') addField.innerHTML = ''; };
-        addField.onblur = () => { if (addField.innerHTML.trim() === '') addField.innerHTML = '+ Добавить задачу'; };
-        
-        tasksContainer.appendChild(addField);
-        hourDiv.appendChild(tasksContainer);
+        hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; margin-bottom: 10px;';
+        hourDiv.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                <div style="width: 60px; color: var(--accent); font-weight: bold;">${hourStr}:00</div>
+                <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+            </div>
+            <div style="margin-left: 60px;">
+                ${hourTasks.map(task => {
+                    const cat = getCategoryById(task.category_id);
+                    return `
+                        <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
+                            <div style="flex:1;">
+                                <span style="color: white;">${task.is_important ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
+                                <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 3px;">${task.time || '09:00'}</div>
+                            </div>
+                            <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
+                        </div>
+                    `;
+                }).join('')}
+                <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" data-date="${dateStr}" style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);">+ Добавить задачу</div>
+            </div>
+        `;
         container.appendChild(hourDiv);
     }
 }
-
 async function completeTaskFromDetail(taskId, checkbox) {
     try {
         const response = await fetch(`${API_URL}/update_task_status`, {
