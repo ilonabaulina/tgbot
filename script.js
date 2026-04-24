@@ -233,7 +233,8 @@ async function renderMonth() {
         }
         dayNode.innerHTML = `<span>${d}</span>`;
 
-        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr);
+        // ТОЛЬКО НЕВЫПОЛНЕННЫЕ ЗАДАЧИ ДЛЯ ПЛАШЕК
+        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr && t.completed == 0);
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
             badgeContainer.style.cssText = `position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; padding: 0 4px; pointer-events: none;`;
@@ -332,8 +333,18 @@ async function renderHourlyTasksForDate(date) {
     container.innerHTML = '';
     const dateStr = date.toISOString().split('T')[0];
     const allTasks = await fetchTasks();
-    const dayTasks = allTasks.filter(t => t.date === dateStr && t.completed == 0);
     
+    // ПОКАЗЫВАЕМ ВСЕ ЗАДАЧИ НА ДЕНЬ (И ВЫПОЛНЕННЫЕ, И НЕТ)
+    const dayTasks = allTasks.filter(t => t.date === dateStr);
+    
+    console.log(`Задачи на ${dateStr}:`, dayTasks.length);
+    
+    if (dayTasks.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding: 40px; opacity:0.5;">📭 Нет задач на этот день</div>';
+        return;
+    }
+    
+    // Группируем по часам
     const tasksByHour = {};
     dayTasks.forEach(task => {
         const hour = task.time ? task.time.split(':')[0] : '09';
@@ -341,32 +352,35 @@ async function renderHourlyTasksForDate(date) {
         tasksByHour[hour].push(task);
     });
     
-    for (let h = 0; h < 24; h++) {
-        const hourStr = h.toString().padStart(2, '0');
-        const hourTasks = tasksByHour[hourStr] || [];
+    // Сортируем часы
+    const hours = Object.keys(tasksByHour).sort((a,b) => parseInt(a) - parseInt(b));
+    
+    for (const hour of hours) {
+        const hourTasks = tasksByHour[hour];
         
         const hourDiv = document.createElement('div');
         hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; margin-bottom: 10px;';
         hourDiv.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <div style="width: 60px; color: var(--accent); font-weight: bold;">${hourStr}:00</div>
+                <div style="width: 60px; color: var(--accent); font-weight: bold;">${hour}:00</div>
                 <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
             </div>
             <div style="margin-left: 60px;">
                 ${hourTasks.map(task => {
                     const cat = getCategoryById(task.category_id);
+                    const isCompleted = task.completed == 1;
                     return `
-                        <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
+                        <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
+                            <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
                             <div style="flex:1;">
-                                <span>${task.is_important ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
+                                <span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
                                 <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 3px;">${task.time || '09:00'}</div>
                             </div>
                             <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
                         </div>
                     `;
                 }).join('')}
-                <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" data-date="${dateStr}" style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);">+ Добавить задачу</div>
+                <div contenteditable="true" class="quick-add-task" data-hour="${hour}" data-date="${dateStr}" style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);">+ Добавить задачу</div>
             </div>
         `;
         container.appendChild(hourDiv);
@@ -490,10 +504,10 @@ async function refreshTasks() {
     if (!taskList) return;
 
     const allTasks = await fetchTasks();
-    // Правильно фильтруем невыполненные
-    const incompleteTasks = allTasks.filter(t => t.completed == 0 && t.is_done == 0);
+    // ТОЛЬКО НЕВЫПОЛНЕННЫЕ ЗАДАЧИ ДЛЯ САЙДБАРА
+    const incompleteTasks = allTasks.filter(t => t.completed == 0);
     
-    console.log("Активных задач:", incompleteTasks.length);
+    console.log("Активных задач в сайдбаре:", incompleteTasks.length);
     
     if (incompleteTasks.length === 0) {
         taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">✅ Все задачи выполнены!</div>';
@@ -768,7 +782,6 @@ async function syncTasksFromBot() {
         const botTasks = await response.json();
         const currentTasks = await fetchTasks();
         
-        // Создаем карту существующих задач
         const existingMap = new Map();
         currentTasks.forEach(task => {
             const key = `${task.text.toLowerCase().trim()}_${task.date}_${task.time || '09:00'}`;
@@ -815,6 +828,7 @@ async function syncTasksFromBot() {
         isSyncing = false;
     }
 }
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
     await fetchCategories();
@@ -824,7 +838,6 @@ async function init() {
     updateDateDisplay();
     await refreshTasks();
     renderCategorySelector();
-  //  await syncTasksFromBot();
 }
 
 init();
