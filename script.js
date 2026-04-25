@@ -407,8 +407,10 @@ async function renderHourlyTasksForDate(date) {
                     <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 18px; height: 18px;">
                     <div style="flex:1;">
                         <span style="${isCompleted ? 'text-decoration: line-through; color: #8e8e93;' : 'color: white;'}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
-                        <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 2px;">${task.time || hourStr + ':00'}</div>
-                    </div>
+// Внутри renderHourlyTasksForDate найди строку отрисовки времени и замени на:
+<div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 2px;">
+    ${task.time ? task.time.substring(0,5) : hourStr + ':00'}
+</div>
                     <button onclick="deleteTask('${task.id}')" style="background: none; border: none; font-size: 1rem; cursor: pointer;">🗑️</button>
                 </div>
             `;
@@ -828,8 +830,10 @@ async function renderDaySummary() {
     const summaryContent = document.getElementById('summary-content');
     if (!summaryContent) return;
 
+    // 1. ОЧИСТКА контейнера (чтобы не было двоения)
+    summaryContent.innerHTML = ''; 
+
     const allTasks = await fetchTasks();
-    // Фикс даты (чтобы не прыгала)
     const y = selectedFullDate.getFullYear();
     const m = String(selectedFullDate.getMonth() + 1).padStart(2, '0');
     const d = String(selectedFullDate.getDate()).padStart(2, '0');
@@ -837,7 +841,8 @@ async function renderDaySummary() {
     
     const dayTasks = allTasks.filter(t => {
         const taskDate = t.date.split('T')[0].split(' ')[0];
-        return taskDate === targetDateStr && t.completed == 0;
+        // Фильтруем только по дате и только невыполненные
+        return taskDate === targetDateStr && (t.completed == 0 || t.completed == null);
     }).sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
 
     if (dayTasks.length === 0) {
@@ -846,8 +851,10 @@ async function renderDaySummary() {
     }
 
     summaryContent.innerHTML = dayTasks.map(t => `
-        <div style="display: flex; align-items: baseline; gap: 10px; font-size: 0.95rem;">
-            <span style="color: var(--accent); font-weight: 600; font-family: monospace; min-width: 45px;">${t.time ? t.time.substring(0,5) : '09:00'}</span>
+        <div style="display: flex; align-items: baseline; gap: 10px; font-size: 0.95rem; margin-bottom: 4px;">
+            <span style="color: var(--accent); font-weight: 600; font-family: monospace; min-width: 45px;">
+                ${t.time ? t.time.substring(0,5) : '09:00'}
+            </span>
             <span style="color: #efefef;">${escapeHtml(t.text)}</span>
         </div>
     `).join('');
@@ -892,7 +899,5 @@ async function init() {
     await refreshTasks();
     renderCategorySelector();
 }
-
-init();
 
 init();
