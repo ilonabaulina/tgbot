@@ -232,54 +232,84 @@ async function renderMonth() {
     let firstDay = new Date(y, m, 1).getDay();
     let shift = (firstDay === 0) ? 6 : firstDay - 1;
     let daysInMonth = new Date(y, m + 1, 0).getDate();
+    
+    // Загружаем задачи один раз для всего месяца
     const allTasks = await fetchTasks();
 
+    // Пустые ячейки для начала месяца
     for (let i = 0; i < shift; i++) {
         const div = document.createElement('div');
         div.className = 'day empty';
         grid.appendChild(div);
     }
 
+    // Отрисовка дней
     for (let d = 1; d <= daysInMonth; d++) {
         const now = new Date();
         const isToday = (d === now.getDate() && m === now.getMonth() && y === now.getFullYear());
         const currentDayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-        if (d === 1) console.log("Сверяем форматы! Из API:", allTasks[0]?.date, "Нужно для календаря:", currentDayStr);
         
         const dayNode = document.createElement('div');
         dayNode.className = `day ${isToday ? 'today' : ''}`;
+        
+        // Проверка выделенного дня
         if (d === selectedFullDate.getDate() && m === selectedFullDate.getMonth() && y === selectedFullDate.getFullYear()) {
             dayNode.classList.add('selected');
         }
+        
         dayNode.innerHTML = `<span>${d}</span>`;
 
-        const dayTasks = allTasks.filter(t => t.date && t.date === currentDayStr && (t.completed == 0 || t.completed == null));
+        // Фильтрация активных задач для текущего числа
+        const dayTasks = allTasks.filter(t => {
+            if (!t.date) return false;
+            const cleanApiDate = t.date.trim().split(' ')[0].split('T')[0];
+            const isActive = (t.completed == 0 || t.completed == null);
+            return cleanApiDate === currentDayStr && isActive;
+        });
+
+        // Отрисовка полосок (индикаторов задач)
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
-            badgeContainer.style.cssText = `position: absolute; bottom: 4px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; padding: 0 4px; pointer-events: none;`;
-            const uniqueColors = [...new Set(dayTasks.map(t => {
-                const cat = getCategoryById(t.category_id);
-                return cat ? cat.color : '#ff453a';
-            }))];
+            badgeContainer.style.cssText = `
+                position: absolute;
+                bottom: 4px;
+                left: 0;
+                right: 0;
+                display: flex;
+                justify-content: center;
+                gap: 2px;
+                pointer-events: none;
+            `;
+
+            // Берем уникальные цвета категорий
+            const uniqueColors = [...new Set(dayTasks.map(t => getCategoryById(t.category_id).color))];
+            
             uniqueColors.forEach(color => {
                 const line = document.createElement('div');
-                line.style.cssText = `width: 10px; height: 3px; background: ${color}; border-radius: 2px;`;
+                line.style.cssText = `
+                    width: 8px; 
+                    height: 3px; 
+                    background: ${color}; 
+                    border-radius: 2px;
+                `;
                 badgeContainer.appendChild(line);
             });
             dayNode.appendChild(badgeContainer);
         }
 
+        // Клик по дню
         dayNode.onclick = async () => {
             selectedFullDate = new Date(y, m, d);
             updateDateDisplay();
-            await renderMonth();
+            await renderMonth(); // Перерисовываем, чтобы обновить класс 'selected'
             await refreshTasks();
             openDayDetail(d);
         };
+        
         grid.appendChild(dayNode);
     }
 }
+
 
 function changeMonth(d) {
     currentViewDate.setMonth(currentViewDate.getMonth() + d);
@@ -351,51 +381,61 @@ async function renderHourlyTasksForDate(date) {
     if (!container) return;
     
     container.innerHTML = '';
-    const dateStr = date.toISOString().split('T')[0];
+    
+    // Форматируем дату для поиска (YYYY-MM-DD)
+    const targetDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    
     const allTasks = await fetchTasks();
     
-    const dayTasks = allTasks.filter(t => t.date === dateStr);
-    
-    console.log(`Задачи на ${dateStr}:`, dayTasks.length);
-    
-    const tasksByHour = {};
-    dayTasks.forEach(task => {
-        let hour = '09';
-        if (task.time && task.time.includes(':')) {
-            hour = task.time.split(':')[0].padStart(2, '0');
-        }
-        if (!tasksByHour[hour]) tasksByHour[hour] = [];
-        tasksByHour[hour].push(task);
+    // Фильтруем задачи именно для этого дня (включая выполненные)
+    const dayTasks = allTasks.filter(t => {
+        if (!t.date) return false;
+        const cleanApiDate = t.date.trim().split(' ')[0].split('T')[0];
+        return cleanApiDate === targetDateStr;
     });
     
-    // ПОЛНАЯ СЕТКА 24 ЧАСА
+    console.log(`Детальный вид: Найдено задач для ${targetDateStr}:`, dayTasks.length);
+
+    // Распределяем задачи по часам (00-23)
+    const tasksByHour = {};
+    dayTasks.forEach(t => {
+        const hour = t.time ? t.time.split(':')[0].padStart(2, '0') : "09";
+        if (!tasksByHour[hour]) tasksByHour[hour] = [];
+        tasksByHour[hour].push(t);
+    });
+    
+    // Отрисовка сетки 24 часа
     for (let h = 0; h < 24; h++) {
         const hourStr = h.toString().padStart(2, '0');
         const hourTasks = tasksByHour[hourStr] || [];
         
         const hourDiv = document.createElement('div');
         hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; margin-bottom: 10px;';
+        
+        // Генерируем HTML для задач в этом часе
+        const tasksHtml = hourTasks.map(task => {
+            const cat = getCategoryById(task.category_id);
+            const isCompleted = (task.completed == 1);
+            return `
+                <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
+                    <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
+                    <div style="flex:1;">
+                        <span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
+                        <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 3px;">${task.time || '09:00'}</div>
+                    </div>
+                    <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
+                </div>
+            `;
+        }).join('');
+
         hourDiv.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <div style="width: 60px; color: var(--accent); font-weight: bold;">${hourStr}:00</div>
                 <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
             </div>
             <div style="margin-left: 60px;">
-                ${hourTasks.map(task => {
-                    const cat = getCategoryById(task.category_id);
-                    const isCompleted = task.completed == 1;
-                    return `
-                        <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
-                            <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
-                            <div style="flex:1;">
-                                <span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
-                                <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 3px;">${task.time || '09:00'}</div>
-                            </div>
-                            <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
-                        </div>
-                    `;
-                }).join('')}
-                <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" data-date="${dateStr}" 
+                ${tasksHtml}
+                <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" 
                     style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);"
                     onfocus="if(this.innerText === '+ Добавить задачу') this.innerText = '';"
                     onblur="if(this.innerText === '') this.innerText = '+ Добавить задачу';">+ Добавить задачу</div>
