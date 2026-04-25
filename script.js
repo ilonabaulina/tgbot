@@ -356,28 +356,26 @@ async function renderHourlyTasksForDate(date) {
     
     console.log(`Задачи на ${dateStr}:`, dayTasks.length);
     
-    if (dayTasks.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding: 40px; opacity:0.5;">📭 Нет задач на этот день</div>';
-        return;
-    }
-    
     const tasksByHour = {};
     dayTasks.forEach(task => {
-        const hour = task.time ? task.time.split(':')[0] : '09';
+        let hour = '09';
+        if (task.time && task.time.includes(':')) {
+            hour = task.time.split(':')[0].padStart(2, '0');
+        }
         if (!tasksByHour[hour]) tasksByHour[hour] = [];
         tasksByHour[hour].push(task);
     });
     
-    const hours = Object.keys(tasksByHour).sort((a,b) => parseInt(a) - parseInt(b));
-    
-    for (const hour of hours) {
-        const hourTasks = tasksByHour[hour];
+    // ПОЛНАЯ СЕТКА 24 ЧАСА
+    for (let h = 0; h < 24; h++) {
+        const hourStr = h.toString().padStart(2, '0');
+        const hourTasks = tasksByHour[hourStr] || [];
         
         const hourDiv = document.createElement('div');
         hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; margin-bottom: 10px;';
         hourDiv.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <div style="width: 60px; color: var(--accent); font-weight: bold;">${hour}:00</div>
+                <div style="width: 60px; color: var(--accent); font-weight: bold;">${hourStr}:00</div>
                 <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
             </div>
             <div style="margin-left: 60px;">
@@ -395,7 +393,7 @@ async function renderHourlyTasksForDate(date) {
                         </div>
                     `;
                 }).join('')}
-                <div contenteditable="true" class="quick-add-task" data-hour="${hour}" data-date="${dateStr}" 
+                <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" data-date="${dateStr}" 
                     style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);"
                     onfocus="if(this.innerText === '+ Добавить задачу') this.innerText = '';"
                     onblur="if(this.innerText === '') this.innerText = '+ Добавить задачу';">+ Добавить задачу</div>
@@ -463,7 +461,6 @@ function setupTasks() {
         let text = taskInput.value.trim();
         if (!text) return;
 
-        const dateStr = selectedFullDate.toISOString().split('T')[0];
         const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
         let taskTime = timePicker ? timePicker.value : "09:00";
 
@@ -473,14 +470,13 @@ function setupTasks() {
             text = text.replace(timeMatch[0], "").trim();
         }
 
-        // ✅ ОТПРАВЛЯЕМ ЧЕРЕЗ TELEGRAM, А НЕ ЧЕРЕЗ API
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.sendData(JSON.stringify({
-  text: `${text} в ${taskTime}`  
+                text: `${text} в ${taskTime}`
             }));
             Telegram.WebApp.close();
         } else {
-            // fallback для отладки вне Telegram
+            const dateStr = selectedFullDate.toISOString().split('T')[0];
             await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
                 headers: COMMON_HEADERS,
@@ -504,8 +500,6 @@ function setupTasks() {
                 flagBtn.style.opacity = "0.6";
             }
         }
-        
-        // Не обновляем сразу, т.к. бот пришлет подтверждение
     };
 
     addBtn.addEventListener('click', performSubmit);
@@ -728,27 +722,23 @@ document.addEventListener('keydown', async (e) => {
         e.preventDefault();
         let text = e.target.innerText.trim();
         const hour = e.target.getAttribute('data-hour');
-        const date = e.target.getAttribute('data-date');
         
         if (!text || text === '+ Добавить задачу') return;
         
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.sendData(JSON.stringify({
-                text: text,
-                date: date,
-                time: `${hour}:00`,
-                category_id: selectedCategoryId,
-                is_important: 0
+                text: `${text} в ${hour}:00`
             }));
             Telegram.WebApp.close();
         } else {
+            const dateStr = selectedFullDate.toISOString().split('T')[0];
             await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
                 headers: COMMON_HEADERS,
                 body: JSON.stringify({
                     user_id: USER_ID,
                     text: text,
-                    date: date,
+                    date: dateStr,
                     time: `${hour}:00`,
                     category_id: selectedCategoryId,
                     is_important: 0
@@ -757,6 +747,8 @@ document.addEventListener('keydown', async (e) => {
         }
         
         e.target.innerHTML = '+ Добавить задачу';
+        await refreshTasks();
+        await renderMonth();
     }
 });
 
