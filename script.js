@@ -810,49 +810,56 @@ document.addEventListener('click', (e) => {
     }
 });
 // Функция для листания дней внутри детального вида
+// Функция для перелистывания дней стрелками
 async function changeDetailDay(offset) {
     selectedFullDate.setDate(selectedFullDate.getDate() + offset);
     
-    // Обновляем заголовок
+    // Обновляем текст даты в заголовке
     const dateStr = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
     document.getElementById('detail-date-title').innerText = dateStr;
     
-    // Перерисовываем всё
-    await renderDaySummary(); // Наша новая рамочка
-    await renderHourlyTasksForDate(selectedFullDate); // Твоя сетка часов
+    // Перерисовываем и сводку, и почасовой план
+    await renderDaySummary(); 
+    await renderHourlyTasksForDate(selectedFullDate);
 }
 
-// Та самая сводка (рамочка сверху)
+// Функция отрисовки сводки (заполняет рамочку)
 async function renderDaySummary() {
     const summaryContent = document.getElementById('summary-content');
     if (!summaryContent) return;
 
     const allTasks = await fetchTasks();
-    const targetDateStr = selectedFullDate.toISOString().split('T')[0];
+    // Фикс даты (чтобы не прыгала)
+    const y = selectedFullDate.getFullYear();
+    const m = String(selectedFullDate.getMonth() + 1).padStart(2, '0');
+    const d = String(selectedFullDate.getDate()).padStart(2, '0');
+    const targetDateStr = `${y}-${m}-${d}`;
     
-    // Берем задачи именно на этот день и сортируем по времени
     const dayTasks = allTasks.filter(t => {
-        const taskDateClean = t.date.split('T')[0].split(' ')[0].trim();
-        return taskDateClean === targetDateStr && t.completed == 0;
+        const taskDate = t.date.split('T')[0].split(' ')[0];
+        return taskDate === targetDateStr && t.completed == 0;
     }).sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
 
     if (dayTasks.length === 0) {
-        summaryContent.innerHTML = '<div style="opacity: 0.5; font-size: 0.9rem;">Задач пока нет</div>';
+        summaryContent.innerHTML = '<div style="opacity: 0.4; font-size: 0.85rem; font-style: italic;">На этот день задач нет...</div>';
         return;
     }
 
-    // Формируем краткий список "Время - Задача"
     summaryContent.innerHTML = dayTasks.map(t => `
-        <div style="display: flex; gap: 10px; margin-bottom: 4px; font-size: 0.95rem;">
-            <span style="color: var(--accent); font-weight: bold; min-width: 45px;">${t.time || '09:00'}</span>
-            <span style="color: white;">${t.text}</span>
+        <div style="display: flex; align-items: baseline; gap: 10px; font-size: 0.95rem;">
+            <span style="color: var(--accent); font-weight: 600; font-family: monospace; min-width: 45px;">${t.time ? t.time.substring(0,5) : '09:00'}</span>
+            <span style="color: #efefef;">${escapeHtml(t.text)}</span>
         </div>
     `).join('');
 }
-function openDayDetail(day) {
+
+// Исправленная функция открытия (добавлен async/await)
+async function openDayDetail(day) {
     const y = currentViewDate.getFullYear();
     const m = currentViewDate.getMonth();
-    selectedFullDate = new Date(y, m, day); // Устанавливаем выбранную дату
+    selectedFullDate = new Date(y, m, day);
+    
+    if (isNaN(selectedFullDate.getTime())) return;
     
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
@@ -860,15 +867,23 @@ function openDayDetail(day) {
     const dateStr = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
     document.getElementById('detail-date-title').innerText = dateStr;
     
-    renderDaySummary(); // Запускаем рамочку
-    renderHourlyTasksForDate(selectedFullDate); // Твоя сетка
+    // Используем await, чтобы рамочка и сетка дождались данных с сервера
+    await renderDaySummary(); 
+    await renderHourlyTasksForDate(selectedFullDate);
 }
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
     if (!USER_ID) {
         console.error("Не удалось получить USER_ID");
         return;
     }
+    // Telegram WebApp Style: сообщаем ТГ, что мы готовы
+    if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand(); // Разворачиваем на весь экран
+    }
+
     await fetchCategories();
     await renderMonth();
     setupTasks();
@@ -877,5 +892,7 @@ async function init() {
     await refreshTasks();
     renderCategorySelector();
 }
+
+init();
 
 init();
