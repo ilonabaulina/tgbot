@@ -382,28 +382,27 @@ async function renderHourlyTasksForDate(date) {
     if (!container) return;
     container.innerHTML = '';
     
-    // Форматируем выбранную дату в YYYY-MM-DD
     const targetDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const allTasks = await fetchTasks();
     
-    // Фильтруем задачи на этот день (включая выполненные для списка)
     const dayTasks = allTasks.filter(t => {
         if (!t.date) return false;
         const taskDateClean = t.date.split('T')[0].split(' ')[0].trim();
         return taskDateClean === targetDateStr;
     });
 
-    // Группируем по часам
     const tasksByHour = {};
     dayTasks.forEach(t => {
-        const hour = t.time ? t.time.split(':')[0].padStart(2, '0') : "09";
+        let hour = '09';
+        if (t.time && t.time.includes(':')) {
+            hour = t.time.split(':')[0].padStart(2, '0');
+        }
         if (!tasksByHour[hour]) tasksByHour[hour] = [];
         tasksByHour[hour].push(t);
     });
     
     const placeholderText = "+ Добавить задачу";
 
-    // Цикл по всем часам суток
     for (let h = 0; h < 24; h++) {
         const hourStr = h.toString().padStart(2, '0');
         const hourTasks = tasksByHour[hourStr] || [];
@@ -415,16 +414,15 @@ async function renderHourlyTasksForDate(date) {
         const tasksHtml = hourTasks.map(task => {
             const cat = getCategoryById(task.category_id);
             const isCompleted = (task.completed == 1);
+            const displayTime = task.time ? task.time.substring(0,5) : hourStr + ':00';
             return `
-                <div class="hourly-task-card" style="background: rgba(255,255,255,0.03); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
+                <div style="background: rgba(255,255,255,0.03); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
                     <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 18px; height: 18px;">
                     <div style="flex:1;">
                         <span style="${isCompleted ? 'text-decoration: line-through; color: #8e8e93;' : 'color: white;'}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
-// Внутри renderHourlyTasksForDate найди строку отрисовки времени и замени на:
-<div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 2px;">
-    ${task.time ? task.time.substring(0,5) : hourStr + ':00'}
-</div>
-                    <button onclick="deleteTask('${task.id}')" style="background: none; border: none; font-size: 1rem; cursor: pointer;">🗑️</button>
+                        <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 2px;">${displayTime}</div>
+                    </div>
+                    <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer; font-size: 1rem;">🗑️</button>
                 </div>
             `;
         }).join('');
