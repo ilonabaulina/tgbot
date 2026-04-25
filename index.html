@@ -50,14 +50,32 @@
             <div id="months-container" class="months-container"></div>
         </div>
 
-        <div id="day-detail-view" class="view hidden">
-            <header class="header">
-                <button onclick="closeDayDetail()" class="nav-btn">Назад</button>
-                <span id="detail-date-title">Дата</span>
-                <div style="width: 40px;"></div>
-            </header>
-            <div id="hourly-grid" class="hourly-schedule"></div>
+<div id="day-detail-view" class="view hidden">
+    <header class="header">
+        <button onclick="closeDayDetail()" class="nav-btn">Назад</button>
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button onclick="changeDetailDay(-1)" class="icon-btn" style="color: var(--accent); font-size: 1.2rem; background: none; border: none;">❮</button>
+            <span id="detail-date-title" style="font-weight: bold;">Дата</span>
+            <button onclick="changeDetailDay(1)" class="icon-btn" style="color: var(--accent); font-size: 1.2rem; background: none; border: none;">❯</button>
         </div>
+        
+        <div style="width: 40px;"></div>
+    </header>
+
+    <div class="detail-content" style="padding: 15px; overflow-y: auto; height: calc(100% - 70px);">
+        <div id="day-summary-box" style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--accent); border-radius: 16px; background: rgba(255,255,255,0.03); box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--accent); font-size: 0.9rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Сводка задач
+            </div>
+            <div id="summary-content" style="display: flex; flex-direction: column; gap: 8px;">
+                </div>
+        </div>
+
+        <div id="hourly-grid" class="hourly-schedule"></div>
+    </div>
+</div>
 
         <aside class="sidebar" id="main-sidebar">
             <div class="sidebar-content">
