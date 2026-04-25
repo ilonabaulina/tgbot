@@ -478,7 +478,10 @@ function setupTasks() {
             text = text.replace(timeMatch[0], "").trim();
         }
 
-        const dateStr = selectedFullDate.toISOString().split('T')[0];
+       const year = selectedFullDate.getFullYear();
+const month = String(selectedFullDate.getMonth() + 1).padStart(2, '0');
+const day = String(selectedFullDate.getDate()).padStart(2, '0');
+const dateStr = `${year}-${month}-${day}`;
 
         try {
             const res = await fetch(`${API_URL}/add_task`, {
@@ -643,7 +646,10 @@ function setTheme(theme) {
 }
 
 async function clearDayTasks() {
-    const dateStr = selectedFullDate.toISOString().split('T')[0];
+const year = selectedFullDate.getFullYear();
+const month = String(selectedFullDate.getMonth() + 1).padStart(2, '0');
+const day = String(selectedFullDate.getDate()).padStart(2, '0');
+const dateStr = `${year}-${month}-${day}`;
     if (!confirm(`Удалить все задачи на ${dateStr}?`)) return;
     try {
         const allTasks = await fetchTasks();
@@ -746,7 +752,11 @@ document.addEventListener('keydown', async (e) => {
         // Если текста нет, ничего не делаем
         if (!text || text === placeholder) return;
         
-        const dateStr = selectedFullDate.toISOString().split('T')[0];
+      const year = selectedFullDate.getFullYear();
+const month = String(selectedFullDate.getMonth() + 1).padStart(2, '0');
+const day = String(selectedFullDate.getDate()).padStart(2, '0');
+const dateStr = `${year}-${month}-${day}`;
+        
 
         // 1. Сразу отправляем данные на сервер (и для ТГ, и для браузера одинаково)
         try {
@@ -799,7 +809,60 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+// Функция для листания дней внутри детального вида
+async function changeDetailDay(offset) {
+    selectedFullDate.setDate(selectedFullDate.getDate() + offset);
+    
+    // Обновляем заголовок
+    const dateStr = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('detail-date-title').innerText = dateStr;
+    
+    // Перерисовываем всё
+    await renderDaySummary(); // Наша новая рамочка
+    await renderHourlyTasksForDate(selectedFullDate); // Твоя сетка часов
+}
 
+// Та самая сводка (рамочка сверху)
+async function renderDaySummary() {
+    const summaryContent = document.getElementById('summary-content');
+    if (!summaryContent) return;
+
+    const allTasks = await fetchTasks();
+    const targetDateStr = selectedFullDate.toISOString().split('T')[0];
+    
+    // Берем задачи именно на этот день и сортируем по времени
+    const dayTasks = allTasks.filter(t => {
+        const taskDateClean = t.date.split('T')[0].split(' ')[0].trim();
+        return taskDateClean === targetDateStr && t.completed == 0;
+    }).sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
+
+    if (dayTasks.length === 0) {
+        summaryContent.innerHTML = '<div style="opacity: 0.5; font-size: 0.9rem;">Задач пока нет</div>';
+        return;
+    }
+
+    // Формируем краткий список "Время - Задача"
+    summaryContent.innerHTML = dayTasks.map(t => `
+        <div style="display: flex; gap: 10px; margin-bottom: 4px; font-size: 0.95rem;">
+            <span style="color: var(--accent); font-weight: bold; min-width: 45px;">${t.time || '09:00'}</span>
+            <span style="color: white;">${t.text}</span>
+        </div>
+    `).join('');
+}
+function openDayDetail(day) {
+    const y = currentViewDate.getFullYear();
+    const m = currentViewDate.getMonth();
+    selectedFullDate = new Date(y, m, day); // Устанавливаем выбранную дату
+    
+    document.getElementById('month-view').classList.add('hidden');
+    document.getElementById('day-detail-view').classList.remove('hidden');
+    
+    const dateStr = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('detail-date-title').innerText = dateStr;
+    
+    renderDaySummary(); // Запускаем рамочку
+    renderHourlyTasksForDate(selectedFullDate); // Твоя сетка
+}
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
     if (!USER_ID) {
