@@ -245,6 +245,8 @@ async function renderMonth() {
         const isToday = (d === now.getDate() && m === now.getMonth() && y === now.getFullYear());
         const currentDayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
+        if (d === 1) console.log("Сверяем форматы! Из API:", allTasks[0]?.date, "Нужно для календаря:", currentDayStr);
+        
         const dayNode = document.createElement('div');
         dayNode.className = `day ${isToday ? 'today' : ''}`;
         if (d === selectedFullDate.getDate() && m === selectedFullDate.getMonth() && y === selectedFullDate.getFullYear()) {
