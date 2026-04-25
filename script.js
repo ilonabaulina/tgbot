@@ -345,23 +345,36 @@ function changeYear(d) {
 }
 
 // ========== ДЕТАЛЬНЫЙ ВИД ДНЯ ==========
-function openDayDetail(day) {
+async function openDayDetail(day) {
     const y = currentViewDate.getFullYear();
     const m = currentViewDate.getMonth();
-    const selectedDate = new Date(y, m, day);
     
-    if (isNaN(selectedDate.getTime())) {
-        console.error("Invalid date:", y, m, day);
+    // 1. Устанавливаем глобальную выбранную дату
+    selectedFullDate = new Date(y, m, day);
+    
+    if (isNaN(selectedFullDate.getTime())) {
+        console.error("Ошибка: Неверная дата при открытии деталей");
         return;
     }
     
+    // 2. Переключаем экраны
     document.getElementById('month-view').classList.add('hidden');
     document.getElementById('day-detail-view').classList.remove('hidden');
     
-    const dateStr = selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-    document.getElementById('detail-date-title').innerText = dateStr;
+    // 3. Обновляем заголовок
+    const dateStr = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const titleElem = document.getElementById('detail-date-title');
+    if (titleElem) titleElem.innerText = dateStr;
     
-    renderHourlyTasksForDate(selectedDate);
+    // 4. Ждем загрузки всех данных для этого дня
+    try {
+        await Promise.all([
+            renderDaySummary(),
+            renderHourlyTasksForDate(selectedFullDate)
+        ]);
+    } catch (err) {
+        console.error("Ошибка при отрисовке деталей дня:", err);
+    }
 }
 
 async function renderHourlyTasksForDate(date) {
@@ -812,26 +825,28 @@ document.addEventListener('click', (e) => {
     }
 });
 // Функция для листания дней внутри детального вида
-// Функция для перелистывания дней стрелками
 async function changeDetailDay(offset) {
+    // Сдвигаем дату
     selectedFullDate.setDate(selectedFullDate.getDate() + offset);
     
-    // Обновляем текст даты в заголовке
+    // Обновляем заголовок сразу для визуального отклика
     const dateStr = selectedFullDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-    document.getElementById('detail-date-title').innerText = dateStr;
+    const titleElem = document.getElementById('detail-date-title');
+    if (titleElem) titleElem.innerText = dateStr;
     
-    // Перерисовываем и сводку, и почасовой план
+    // Перерисовываем данные
     await renderDaySummary(); 
     await renderHourlyTasksForDate(selectedFullDate);
+    
+    // Синхронизируем мини-календарь на главном экране (опционально)
+    updateDateDisplay();
 }
-
 // Функция отрисовки сводки (заполняет рамочку)
 async function renderDaySummary() {
     const summaryContent = document.getElementById('summary-content');
     if (!summaryContent) return;
 
-    // 1. ОЧИСТКА контейнера (чтобы не было двоения)
-    summaryContent.innerHTML = ''; 
+    summaryContent.innerHTML = '<div style="opacity: 0.5; font-size: 0.8rem;">Загрузка...</div>'; 
 
     const allTasks = await fetchTasks();
     const y = selectedFullDate.getFullYear();
@@ -840,13 +855,13 @@ async function renderDaySummary() {
     const targetDateStr = `${y}-${m}-${d}`;
     
     const dayTasks = allTasks.filter(t => {
+        if (!t || !t.date) return false;
         const taskDate = t.date.split('T')[0].split(' ')[0];
-        // Фильтруем только по дате и только невыполненные
         return taskDate === targetDateStr && (t.completed == 0 || t.completed == null);
     }).sort((a, b) => (a.time || "00:00").localeCompare(b.time || "00:00"));
 
     if (dayTasks.length === 0) {
-        summaryContent.innerHTML = '<div style="opacity: 0.4; font-size: 0.85rem; font-style: italic;">На этот день задач нет...</div>';
+        summaryContent.innerHTML = '<div style="opacity: 0.4; font-size: 0.85rem; font-style: italic;">Задач нет</div>';
         return;
     }
 
@@ -859,7 +874,6 @@ async function renderDaySummary() {
         </div>
     `).join('');
 }
-
 // Исправленная функция открытия (добавлен async/await)
 async function openDayDetail(day) {
     const y = currentViewDate.getFullYear();
