@@ -299,13 +299,32 @@ body.light-theme .time-picker-row input[type="time"] {
     background: var(--card);
     border-radius: 12px;
     display: flex;
+    flex-direction: column; /* Изменили, чтобы число было сверху, а индикаторы снизу */
     align-items: center;
-    justify-content: center;
+    justify-content: center; /* Центрируем число */
     cursor: pointer;
-    position: relative;
+    position: relative; /* Обязательно для работы absolute внутри */
     transition: transform 0.1s;
     font-size: 0.95rem;
-    padding-bottom: 6px;
+    padding: 5px; /* Добавим внутренний отступ */
+    overflow: hidden; /* Чтобы полоски не вылезали за скругления */
+}
+
+.day span {
+    z-index: 2;
+    pointer-events: none;
+    margin-top: -5px; 
+}
+
+/* Стили для контейнера полосок, который создается в JS */
+.day div[style*="position: absolute"] {
+    z-index: 1;
+    bottom: 6px !important; /* Принудительно прижимаем вниз */
+    height: 4px;
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
 }
 
 .day:active { transform: scale(0.9); }
