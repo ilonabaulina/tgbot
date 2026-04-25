@@ -233,17 +233,17 @@ async function renderMonth() {
     let shift = (firstDay === 0) ? 6 : firstDay - 1;
     let daysInMonth = new Date(y, m + 1, 0).getDate();
     
-    // Загружаем задачи один раз для всего месяца
+    // Получаем список всех задач с сервера
     const allTasks = await fetchTasks();
 
-    // Пустые ячейки для начала месяца
+    // Отрисовка пустых ячеек (сдвиг начала месяца)
     for (let i = 0; i < shift; i++) {
         const div = document.createElement('div');
         div.className = 'day empty';
         grid.appendChild(div);
     }
 
-    // Отрисовка дней
+    // Отрисовка чисел месяца
     for (let d = 1; d <= daysInMonth; d++) {
         const now = new Date();
         const isToday = (d === now.getDate() && m === now.getMonth() && y === now.getFullYear());
@@ -252,56 +252,45 @@ async function renderMonth() {
         const dayNode = document.createElement('div');
         dayNode.className = `day ${isToday ? 'today' : ''}`;
         
-        // Проверка выделенного дня
+        // Подсветка выбранного дня
         if (d === selectedFullDate.getDate() && m === selectedFullDate.getMonth() && y === selectedFullDate.getFullYear()) {
             dayNode.classList.add('selected');
         }
         
         dayNode.innerHTML = `<span>${d}</span>`;
 
-        // Фильтрация активных задач для текущего числа
+        // Фильтруем задачи для этого конкретного дня (только невыполненные для индикаторов)
         const dayTasks = allTasks.filter(t => {
             if (!t.date) return false;
-            const cleanApiDate = t.date.trim().split(' ')[0].split('T')[0];
+            const taskDateClean = t.date.split('T')[0].split(' ')[0].trim();
             const isActive = (t.completed == 0 || t.completed == null);
-            return cleanApiDate === currentDayStr && isActive;
+            return taskDateClean === currentDayStr && isActive;
         });
 
-        // Отрисовка полосок (индикаторов задач)
+        // Если задачи есть — рисуем цветные полоски
         if (dayTasks.length > 0) {
             const badgeContainer = document.createElement('div');
             badgeContainer.style.cssText = `
-                position: absolute;
-                bottom: 4px;
-                left: 0;
-                right: 0;
-                display: flex;
-                justify-content: center;
-                gap: 2px;
-                pointer-events: none;
+                position: absolute; bottom: 4px; left: 0; right: 0;
+                display: flex; justify-content: center; gap: 2px; pointer-events: none;
             `;
 
-            // Берем уникальные цвета категорий
+            // Берем уникальные цвета категорий этого дня
             const uniqueColors = [...new Set(dayTasks.map(t => getCategoryById(t.category_id).color))];
             
             uniqueColors.forEach(color => {
                 const line = document.createElement('div');
-                line.style.cssText = `
-                    width: 8px; 
-                    height: 3px; 
-                    background: ${color}; 
-                    border-radius: 2px;
-                `;
+                line.style.cssText = `width: 8px; height: 3px; background: ${color}; border-radius: 2px;`;
                 badgeContainer.appendChild(line);
             });
             dayNode.appendChild(badgeContainer);
         }
 
-        // Клик по дню
+        // Клик по дню: обновляем выбор и открываем детали
         dayNode.onclick = async () => {
             selectedFullDate = new Date(y, m, d);
             updateDateDisplay();
-            await renderMonth(); // Перерисовываем, чтобы обновить класс 'selected'
+            await renderMonth(); // чтобы мгновенно перерисовать рамку 'selected'
             await refreshTasks();
             openDayDetail(d);
         };
@@ -309,7 +298,6 @@ async function renderMonth() {
         grid.appendChild(dayNode);
     }
 }
-
 
 function changeMonth(d) {
     currentViewDate.setMonth(currentViewDate.getMonth() + d);
@@ -379,24 +367,20 @@ function openDayDetail(day) {
 async function renderHourlyTasksForDate(date) {
     const container = document.getElementById('hourly-grid');
     if (!container) return;
-    
     container.innerHTML = '';
     
-    // Форматируем дату для поиска (YYYY-MM-DD)
+    // Форматируем выбранную дату в YYYY-MM-DD
     const targetDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    
     const allTasks = await fetchTasks();
     
-    // Фильтруем задачи именно для этого дня (включая выполненные)
+    // Фильтруем задачи на этот день (включая выполненные для списка)
     const dayTasks = allTasks.filter(t => {
         if (!t.date) return false;
-        const cleanApiDate = t.date.trim().split(' ')[0].split('T')[0];
-        return cleanApiDate === targetDateStr;
+        const taskDateClean = t.date.split('T')[0].split(' ')[0].trim();
+        return taskDateClean === targetDateStr;
     });
-    
-    console.log(`Детальный вид: Найдено задач для ${targetDateStr}:`, dayTasks.length);
 
-    // Распределяем задачи по часам (00-23)
+    // Группируем по часам
     const tasksByHour = {};
     dayTasks.forEach(t => {
         const hour = t.time ? t.time.split(':')[0].padStart(2, '0') : "09";
@@ -404,47 +388,48 @@ async function renderHourlyTasksForDate(date) {
         tasksByHour[hour].push(t);
     });
     
-    // Отрисовка сетки 24 часа
+    const placeholderText = "+ Добавить задачу";
+
+    // Цикл по всем часам суток
     for (let h = 0; h < 24; h++) {
         const hourStr = h.toString().padStart(2, '0');
         const hourTasks = tasksByHour[hourStr] || [];
         
         const hourDiv = document.createElement('div');
-        hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1); padding: 10px 0; margin-bottom: 10px;';
+        hourDiv.className = 'hour-row';
+        hourDiv.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.05); padding: 12px 0;';
         
-        // Генерируем HTML для задач в этом часе
         const tasksHtml = hourTasks.map(task => {
             const cat = getCategoryById(task.category_id);
             const isCompleted = (task.completed == 1);
             return `
-                <div style="background: rgba(255,255,255,0.05); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
-                    <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 20px; height: 20px;">
+                <div class="hourly-task-card" style="background: rgba(255,255,255,0.03); border-left: 3px solid ${cat.color}; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; opacity: ${isCompleted ? 0.5 : 1};">
+                    <input type="checkbox" ${isCompleted ? 'checked' : ''} onchange="completeTask('${task.id}', this)" style="accent-color: ${cat.color}; width: 18px; height: 18px;">
                     <div style="flex:1;">
-                        <span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
-                        <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 3px;">${task.time || '09:00'}</div>
+                        <span style="${isCompleted ? 'text-decoration: line-through; color: #8e8e93;' : 'color: white;'}">${task.is_important == 1 ? '🚩 ' : ''}${escapeHtml(task.text)}</span>
+                        <div style="color: ${cat.color}; font-size: 0.7rem; margin-top: 2px;">${task.time || hourStr + ':00'}</div>
                     </div>
-                    <button onclick="deleteTask('${task.id}')" style="background: none; border: none; color: #8e8e93; cursor: pointer;">🗑️</button>
+                    <button onclick="deleteTask('${task.id}')" style="background: none; border: none; font-size: 1rem; cursor: pointer;">🗑️</button>
                 </div>
             `;
         }).join('');
 
         hourDiv.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <div style="width: 60px; color: var(--accent); font-weight: bold;">${hourStr}:00</div>
+                <div style="width: 50px; color: var(--accent); font-weight: bold; font-size: 0.9rem;">${hourStr}:00</div>
                 <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
             </div>
-            <div style="margin-left: 60px;">
+            <div style="margin-left: 50px;">
                 ${tasksHtml}
                 <div contenteditable="true" class="quick-add-task" data-hour="${hourStr}" 
-                    style="color: #8e8e93; font-size: 0.8rem; padding: 8px; outline: none; cursor: text; border-radius: 8px; background: rgba(255,255,255,0.03);"
-                    onfocus="if(this.innerText === '+ Добавить задачу') this.innerText = '';"
-                    onblur="if(this.innerText === '') this.innerText = '+ Добавить задачу';">+ Добавить задачу</div>
+                    style="color: #8e8e93; font-size: 0.8rem; padding: 6px; outline: none; border-radius: 6px; min-height: 1.2em;"
+                    onfocus="if(this.innerText.trim() === '${placeholderText}') this.innerText = '';"
+                    onblur="if(this.innerText.trim() === '') this.innerText = '${placeholderText}';">${placeholderText}</div>
             </div>
         `;
         container.appendChild(hourDiv);
     }
 }
-
 function closeDayDetail() {
     document.getElementById('day-detail-view').classList.add('hidden');
     document.getElementById('month-view').classList.remove('hidden');
@@ -759,13 +744,16 @@ function changeSelectedDay(offset) {
 }
 
 // ========== ОБРАБОТЧИКИ ==========
+// ========== ОБРАБОТЧИКИ ==========
 document.addEventListener('keydown', async (e) => {
     if (e.target.classList && e.target.classList.contains('quick-add-task') && e.key === 'Enter') {
         e.preventDefault();
         let text = e.target.innerText.trim();
         const hour = e.target.getAttribute('data-hour');
+        const placeholder = "+ Добавить задачу";
         
-        if (!text || text === '+ Добавить задачу') return;
+        // Если текст пустой или совпадает с плейсхолдером — ничего не делаем
+        if (!text || text === placeholder) return;
         
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.sendData(JSON.stringify({
@@ -788,9 +776,14 @@ document.addEventListener('keydown', async (e) => {
             });
         }
         
-        e.target.innerHTML = '+ Добавить задачу';
+        // Очищаем поле и убираем фокус, чтобы сработал onblur и вернулся плейсхолдер
+        e.target.innerText = ""; 
+        e.target.blur(); 
+
         await refreshTasks();
         await renderMonth();
+        // Обновляем текущий вид, чтобы увидеть новую задачу в списке часов
+        await renderHourlyTasksForDate(selectedFullDate);
     }
 });
 
