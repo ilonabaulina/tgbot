@@ -476,11 +476,7 @@ function setupTasks() {
         // ✅ ОТПРАВЛЯЕМ ЧЕРЕЗ TELEGRAM, А НЕ ЧЕРЕЗ API
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.sendData(JSON.stringify({
-                text: text,
-                date: dateStr,
-                time: taskTime,
-                category_id: selectedCategoryId,
-                is_important: isImportant
+  text: `${text} в ${taskTime}`  
             }));
             Telegram.WebApp.close();
         } else {
