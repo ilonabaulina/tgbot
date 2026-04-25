@@ -445,66 +445,43 @@ function setupTasks() {
 
     if (!taskInput || !addBtn) return;
 
+    // Настройка логики флага (категорий)
     if (flagBtn) {
-        const startCat = getCategoryById(selectedCategoryId);
-        flagBtn.style.color = startCat.color;
-        flagBtn.style.opacity = "0.6";
-        
         flagBtn.onclick = (e) => {
             e.preventDefault();
-            e.stopPropagation();
             const currentIndex = categories.findIndex(c => String(c.id) === String(selectedCategoryId));
             const nextIndex = (currentIndex + 1) % categories.length;
-            const nextCategory = categories[nextIndex];
-            selectedCategoryId = nextCategory.id;
+            selectedCategoryId = categories[nextIndex].id;
             renderCategorySelector();
-            if (importantCheckbox && importantCheckbox.checked) {
-                flagBtn.style.color = nextCategory.color;
-                flagBtn.style.opacity = "1";
-            } else {
-                flagBtn.style.color = nextCategory.color;
-                flagBtn.style.opacity = "0.6";
-            }
-            flagBtn.style.transform = 'scale(0.9)';
-            setTimeout(() => { flagBtn.style.transform = 'scale(1)'; }, 150);
-        };
-    }
-
-    if (importantCheckbox && flagBtn) {
-        importantCheckbox.onchange = () => {
+            
             const cat = getCategoryById(selectedCategoryId);
-            if (importantCheckbox.checked) {
-                flagBtn.style.color = cat.color;
-                flagBtn.style.opacity = "1";
-            } else {
-                flagBtn.style.color = cat.color;
-                flagBtn.style.opacity = "0.6";
-            }
+            flagBtn.style.color = cat.color;
+            flagBtn.style.opacity = importantCheckbox?.checked ? "1" : "0.6";
         };
     }
 
     const performSubmit = async (e) => {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (e) { e.preventDefault(); }
         let text = taskInput.value.trim();
         if (!text) return;
 
-        const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
-        let taskTime = timePicker ? timePicker.value : "09:00";
+        addBtn.disabled = true; // Блокируем кнопку, чтобы не спамить кликами
+        addBtn.innerText = "⏳";
 
+        const isImportant = (importantCheckbox && importantCheckbox.checked) ? 1 : 0;
+        let taskTime = (timePicker && timePicker.value) ? timePicker.value : "09:00";
+
+        // Если в тексте есть время (напр. "15:00 Купить хлеб")
         const timeMatch = text.match(/(\d{1,2})[:.](\d{2})/);
         if (timeMatch) {
             taskTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
             text = text.replace(timeMatch[0], "").trim();
         }
 
-        if (window.Telegram && Telegram.WebApp) {
-            Telegram.WebApp.sendData(JSON.stringify({
-                text: `${text} в ${taskTime}`
-            }));
-            Telegram.WebApp.close();
-        } else {
-            const dateStr = selectedFullDate.toISOString().split('T')[0];
-            await fetch(`${API_URL}/add_task`, {
+        const dateStr = selectedFullDate.toISOString().split('T')[0];
+
+        try {
+            const res = await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
                 headers: COMMON_HEADERS,
                 body: JSON.stringify({
@@ -516,21 +493,35 @@ function setupTasks() {
                     is_important: isImportant
                 })
             });
-        }
-        
-        taskInput.value = '';
-        if (importantCheckbox) {
-            importantCheckbox.checked = false;
-            const cat = getCategoryById(selectedCategoryId);
-            if (flagBtn) {
-                flagBtn.style.color = cat.color;
-                flagBtn.style.opacity = "0.6";
+
+            if (res.ok) {
+                taskInput.value = '';
+                if (importantCheckbox) importantCheckbox.checked = false;
+                
+                // Вместо закрытия приложения — просто обновляем данные
+                await fastRefresh(); 
             }
+        } catch (e) {
+            console.error("Ошибка при добавлении:", e);
+        } finally {
+            addBtn.disabled = false;
+            addBtn.innerText = "+";
         }
     };
 
-    addBtn.addEventListener('click', performSubmit);
-    taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') performSubmit(e); });
+    addBtn.onclick = performSubmit;
+    taskInput.onkeypress = (e) => { if (e.key === 'Enter') performSubmit(e); };
+}
+async function fastRefresh() {
+    // 1. Качаем данные ОДИН раз
+    const allTasks = await fetchTasks();
+    
+    // 2. Отрисовываем сайдбар, передавая ему уже скачанные данные
+    // Мы вызываем твою любимую refreshTasks, но чуть ниже мы её поправим
+    await refreshTasks(allTasks); 
+    
+    // 3. Обновляем календарь (он сам внутри вызовет fetchTasks, это пока оставим)
+    await renderMonth(); 
 }
 
 async function refreshTasks() {
@@ -539,8 +530,6 @@ async function refreshTasks() {
 
     const allTasks = await fetchTasks();
     const incompleteTasks = allTasks.filter(t => t.completed == 0 || t.completed == null);
-    
-    console.log("Активных задач в сайдбаре:", incompleteTasks.length);
     
     if (incompleteTasks.length === 0) {
         taskList.innerHTML = '<div class="hint" style="text-align:center; opacity:0.5; margin-top:20px;">✅ Все задачи выполнены!</div>';
@@ -746,23 +735,22 @@ function changeSelectedDay(offset) {
 // ========== ОБРАБОТЧИКИ ==========
 // ========== ОБРАБОТЧИКИ ==========
 document.addEventListener('keydown', async (e) => {
+    // Проверяем, что нажали Enter именно в поле быстрого добавления
     if (e.target.classList && e.target.classList.contains('quick-add-task') && e.key === 'Enter') {
         e.preventDefault();
+        
         let text = e.target.innerText.trim();
         const hour = e.target.getAttribute('data-hour');
         const placeholder = "+ Добавить задачу";
         
-        // Если текст пустой или совпадает с плейсхолдером — ничего не делаем
+        // Если текста нет, ничего не делаем
         if (!text || text === placeholder) return;
         
-        if (window.Telegram && Telegram.WebApp) {
-            Telegram.WebApp.sendData(JSON.stringify({
-                text: `${text} в ${hour}:00`
-            }));
-            Telegram.WebApp.close();
-        } else {
-            const dateStr = selectedFullDate.toISOString().split('T')[0];
-            await fetch(`${API_URL}/add_task`, {
+        const dateStr = selectedFullDate.toISOString().split('T')[0];
+
+        // 1. Сразу отправляем данные на сервер (и для ТГ, и для браузера одинаково)
+        try {
+            const response = await fetch(`${API_URL}/add_task`, {
                 method: 'POST',
                 headers: COMMON_HEADERS,
                 body: JSON.stringify({
@@ -774,16 +762,23 @@ document.addEventListener('keydown', async (e) => {
                     is_important: 0
                 })
             });
-        }
-        
-        // Очищаем поле и убираем фокус, чтобы сработал onblur и вернулся плейсхолдер
-        e.target.innerText = ""; 
-        e.target.blur(); 
 
-        await refreshTasks();
-        await renderMonth();
-        // Обновляем текущий вид, чтобы увидеть новую задачу в списке часов
-        await renderHourlyTasksForDate(selectedFullDate);
+            if (response.ok) {
+                // 2. Очищаем поле ввода
+                e.target.innerText = ""; 
+                e.target.blur(); 
+
+                // 3. ОБНОВЛЯЕМ ИНТЕРФЕЙС (чтобы сразу увидеть результат)
+                await refreshTasks(); // Обновит список сбоку
+                await renderMonth();  // Обновит полоски на календаре
+                await renderHourlyTasksForDate(selectedFullDate); // Обновит текущий список часов
+                
+                console.log("Задача успешно добавлена!");
+            }
+        } catch (err) {
+            console.error("Ошибка при быстром добавлении:", err);
+            alert("Не удалось сохранить задачу");
+        }
     }
 });
 
