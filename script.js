@@ -822,45 +822,42 @@ document.addEventListener('click', (e) => {
     const settingsMenu = document.getElementById('settings-menu');
     const categoryPopup = document.getElementById('category-manager-popup');
 
-    // 1. Ищем, нажал ли пользователь на кнопки (учитываем иконки через .closest)
-    const settingsBtn = e.target.closest('.setting-trigger') || e.target.closest('button[onclick*="toggleSettings"]');
-    const categoryBtn = e.target.closest('button[onclick*="toggleCategoryManager"]');
+    // Находим конкретные кнопки через closest по их ID
+    const isSettingsBtn = e.target.closest('#btn-settings');
+    const isCategoryBtn = e.target.closest('#btn-categories');
 
-    // --- ЛОГИКА НАСТРОЕК ---
-    if (settingsBtn) {
-        // Если нажали на кнопку настроек — переключаем видимость
-        const isHidden = settingsMenu.classList.contains('hidden');
+    // Если нажали на шестеренку
+    if (isSettingsBtn) {
+        e.stopPropagation(); // Важно: останавливаем всплытие!
         settingsMenu.classList.toggle('hidden');
-        categoryPopup.classList.add('hidden'); // Закрываем категории
-        return; // Выходим, чтобы код закрытия ниже не сработал
+        categoryPopup.classList.add('hidden');
+        return;
     }
 
-    // --- ЛОГИКА КАТЕГОРИЙ ---
-    if (categoryBtn) {
-        // Если нажали на кнопку категорий
-        const isHidden = categoryPopup.classList.contains('hidden');
+    // Если нажали на бирку категорий
+    if (isCategoryBtn) {
+        e.stopPropagation();
         categoryPopup.classList.toggle('hidden');
-        settingsMenu.classList.add('hidden'); // Закрываем настройки
+        settingsMenu.classList.add('hidden');
         
-        // Если мы только что открыли меню, обновляем данные
-        if (isHidden) {
+        // Подгружаем данные, если открыли
+        if (!categoryPopup.classList.contains('hidden')) {
             fetchCategories().then(() => renderCategorySelector());
         }
         return;
     }
 
-    // --- ЛОГИКА ЗАКРЫТИЯ ПРИ КЛИКЕ МИМО ---
-    
-    // Закрываем настройки, если клик был не по ним
-    if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
-        if (!settingsMenu.contains(e.target)) {
+    // ЗАКРЫТИЕ ПРИ КЛИКЕ МИМО
+    // Закрываем настройки, если клик был не по ним и не по меню
+    if (!settingsMenu.classList.contains('hidden')) {
+        if (!settingsMenu.contains(e.target) && !isSettingsBtn) {
             settingsMenu.classList.add('hidden');
         }
     }
 
-    // Закрываем категории, если клик был не по ним
-    if (categoryPopup && !categoryPopup.classList.contains('hidden')) {
-        if (!categoryPopup.contains(e.target)) {
+    // Закрываем категории
+    if (!categoryPopup.classList.contains('hidden')) {
+        if (!categoryPopup.contains(e.target) && !isCategoryBtn) {
             categoryPopup.classList.add('hidden');
         }
     }
