@@ -138,11 +138,20 @@ function selectCategory(id) {
     }
 }
 
-function toggleCategoryManager() {
+async function toggleCategoryManager(e) {
+    if (e) e.stopPropagation();
     const popup = document.getElementById('category-manager-popup');
-    popup.classList.toggle('hidden');
-    if (!popup.classList.contains('hidden')) {
-        renderCategoryManagerList();
+    const settingsMenu = document.getElementById('settings-menu');
+    
+    if (popup.classList.contains('hidden')) {
+        popup.classList.remove('hidden');
+        settingsMenu.classList.add('hidden'); // Закрываем настройки
+        
+        // Сразу подгружаем актуальные категории
+        await fetchCategories();
+        renderCategorySelector(); 
+    } else {
+        popup.classList.add('hidden');
     }
 }
 
@@ -628,9 +637,13 @@ async function deleteTask(taskId) {
 }
 
 // ========== НАСТРОЙКИ ==========
-function toggleSettings() {
+function toggleSettings(e) {
+    if (e) e.stopPropagation(); // Чтобы клик не улетел дальше
     const menu = document.getElementById('settings-menu');
-    if (menu) menu.classList.toggle('hidden');
+    const categoryPopup = document.getElementById('category-manager-popup');
+    
+    menu.classList.toggle('hidden');
+    categoryPopup.classList.add('hidden'); // Закрываем категории, если они открыты
 }
 
 function changeAccent(color) {
@@ -808,14 +821,44 @@ const dateStr = `${year}-${month}-${day}`;
 document.addEventListener('click', (e) => {
     const settingsMenu = document.getElementById('settings-menu');
     const categoryPopup = document.getElementById('category-manager-popup');
-    const settingsBtn = document.querySelector('.setting-trigger');
+
+    // 1. Ищем, нажал ли пользователь на кнопки (учитываем иконки через .closest)
+    const settingsBtn = e.target.closest('.setting-trigger') || e.target.closest('button[onclick*="toggleSettings"]');
+    const categoryBtn = e.target.closest('button[onclick*="toggleCategoryManager"]');
+
+    // --- ЛОГИКА НАСТРОЕК ---
+    if (settingsBtn) {
+        // Если нажали на кнопку настроек — переключаем видимость
+        const isHidden = settingsMenu.classList.contains('hidden');
+        settingsMenu.classList.toggle('hidden');
+        categoryPopup.classList.add('hidden'); // Закрываем категории
+        return; // Выходим, чтобы код закрытия ниже не сработал
+    }
+
+    // --- ЛОГИКА КАТЕГОРИЙ ---
+    if (categoryBtn) {
+        // Если нажали на кнопку категорий
+        const isHidden = categoryPopup.classList.contains('hidden');
+        categoryPopup.classList.toggle('hidden');
+        settingsMenu.classList.add('hidden'); // Закрываем настройки
+        
+        // Если мы только что открыли меню, обновляем данные
+        if (isHidden) {
+            fetchCategories().then(() => renderCategorySelector());
+        }
+        return;
+    }
+
+    // --- ЛОГИКА ЗАКРЫТИЯ ПРИ КЛИКЕ МИМО ---
     
+    // Закрываем настройки, если клик был не по ним
     if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
-        if (!settingsMenu.contains(e.target) && !settingsBtn?.contains(e.target)) {
+        if (!settingsMenu.contains(e.target)) {
             settingsMenu.classList.add('hidden');
         }
     }
-    
+
+    // Закрываем категории, если клик был не по ним
     if (categoryPopup && !categoryPopup.classList.contains('hidden')) {
         if (!categoryPopup.contains(e.target)) {
             categoryPopup.classList.add('hidden');
